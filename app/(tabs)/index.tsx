@@ -368,7 +368,7 @@ function ExerciseListScreen({ category, exercises, onSelectExercise, onBack }: a
   );
 }
 
-// 3. 动作详情 (修复删除确认框)
+// ---------- 3. 动作详情 (修改为：批次录入模式 - 4列布局) ----------
 function ExerciseDetailScreen({
   exerciseId,
   exercises,
@@ -384,7 +384,6 @@ function ExerciseDetailScreen({
     [exerciseId, exercises]
   );
 
-  // 修复 1: 适配 Web 环境的删除确认
   const confirmDelete = () => {
     if (!exercise) return;
     if (Platform.OS === 'web') {
@@ -412,60 +411,75 @@ function ExerciseDetailScreen({
   );
 
   const lastLog = exerciseLogs[0];
-  const [currentSets, setCurrentSets] = useState<{ weight: string; reps: string }[]>(
-    lastLog?.sets?.length
-      ? lastLog.sets.map((s) => ({ weight: String(s.weight ?? ""), reps: String(s.reps ?? "") }))
-      : [{ weight: "", reps: "" }]
+
+  // 这里 state 改存 "批次"：重量、单组次数、执行几组
+  const [currentBatches, setCurrentBatches] = useState<{ weight: string; reps: string; count: string }[]>(
+    [{ weight: "", reps: "", count: "" }]
   );
 
+  // 初始化时，如果有历史记录，尝试预填第一行（取上次最后做的重量和次数，组数默认为空或1）
   useEffect(() => {
     if (lastLog?.sets?.length) {
-      setCurrentSets(
-        lastLog.sets.map((s) => ({ weight: String(s.weight ?? ""), reps: String(s.reps ?? "") }))
-      );
-    } else {
-      setCurrentSets([{ weight: "", reps: "" }]);
+      const lastSet = lastLog.sets[lastLog.sets.length - 1];
+      setCurrentBatches([{ 
+        weight: String(lastSet.weight ?? ""), 
+        reps: String(lastSet.reps ?? ""), 
+        count: "" // 组数留空让用户填，或者您可以改为 "1"
+      }]);
     }
   }, [exerciseId]);
 
-  const updateSet = useCallback((index: number, field: "weight" | "reps", value: string) => {
-    setCurrentSets((prev) => {
+  const updateBatch = useCallback((index: number, field: "weight" | "reps" | "count", value: string) => {
+    setCurrentBatches((prev) => {
       const copy = [...prev];
       copy[index] = { ...copy[index], [field]: value };
       return copy;
     });
   }, []);
 
-  const addSet = useCallback(() => {
-    setCurrentSets((prev) => {
-      const last = prev[prev.length - 1] || { weight: "", reps: "" };
-      return [...prev, { weight: last.weight, reps: last.reps }];
+  const addBatchRow = useCallback(() => {
+    setCurrentBatches((prev) => {
+      const last = prev[prev.length - 1] || { weight: "", reps: "", count: "" };
+      // 新增一行时，复制上一行的重量和次数，组数清空
+      return [...prev, { weight: last.weight, reps: last.reps, count: "" }];
     });
   }, []);
 
-  const removeSet = useCallback(() => {
-    setCurrentSets((prev) => (prev.length > 1 ? prev.slice(0, -1) : [{ weight: "", reps: "" }]));
+  const removeBatchRow = useCallback(() => {
+    setCurrentBatches((prev) => (prev.length > 1 ? prev.slice(0, -1) : [{ weight: "", reps: "", count: "" }]));
   }, []);
 
   const handleSubmit = () => {
-    const validSets: SetItem[] = currentSets
-      .filter((s) => s.weight !== "" && s.reps !== "")
-      .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) }))
-      .filter((s) => !Number.isNaN(s.weight) && !Number.isNaN(s.reps) && s.weight > 0 && s.reps > 0);
+    const finalSets: SetItem[] = [];
 
-    if (!validSets.length) {
-      if (Platform.OS === 'web') {
-        window.alert("请至少填写一组有效数据");
-      } else {
-        Alert.alert("提示", "请至少填写一组有效数据");
+    // 遍历每一行输入
+    for (const batch of currentBatches) {
+      const w = parseFloat(batch.weight);
+      const r = parseFloat(batch.reps);
+      const c = parseFloat(batch.count); // 组数
+
+      // 验证数据有效性
+      if (!Number.isNaN(w) && !Number.isNaN(r) && !Number.isNaN(c) && w > 0 && r > 0 && c > 0) {
+        // 核心逻辑：根据“组数”循环生成记录
+        for (let i = 0; i < c; i++) {
+          finalSets.push({ weight: w, reps: r });
+        }
       }
+    }
+
+    if (!finalSets.length) {
+      const msg = "请填写有效数据 (重量、次数、组数均需大于0)";
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert("提示", msg);
       return;
     }
-    onAddLog({ exerciseId, sets: validSets });
+
+    onAddLog({ exerciseId, sets: finalSets });
+    
     if (Platform.OS === 'web') {
-      window.alert("记录已保存！");
+      window.alert(`已保存 ${finalSets.length} 组记录！`);
     } else {
-      Alert.alert("成功", "记录已保存！");
+      Alert.alert("成功", `已保存 ${finalSets.length} 组记录！`);
     }
   };
 
@@ -494,38 +508,66 @@ function ExerciseDetailScreen({
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>📝 新增记录</Text>
-          {currentSets.map((set, index) => (
+          <Text style={styles.cardTitle}>📝 新增记录 (批量录入)</Text>
+          
+          {/* 表头：4列布局 */}
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeaderText, { flex: 0.6 }]}>序号</Text>
+            <Text style={styles.tableHeaderText}>重量(KG)</Text>
+            <Text style={styles.tableHeaderText}>次数</Text>
+            <Text style={styles.tableHeaderText}>组数</Text>
+          </View>
+
+          {/* 输入行：4列布局 */}
+          {currentBatches.map((batch, index) => (
             <View key={index} style={styles.setRow}>
-              <Text style={styles.setLabel}>第 {index + 1} 组</Text>
+              {/* 1. 序号 */}
+              <View style={styles.setIndexContainer}>
+                <Text style={styles.setIndexText}>{index + 1}</Text>
+              </View>
+              
+              {/* 2. 重量 */}
               <TextInput
                 style={styles.input}
                 keyboardType="numeric"
-                placeholder="kg"
-                value={set.weight}
-                onChangeText={(v) => updateSet(index, "weight", v)}
+                placeholder="0"
+                placeholderTextColor="#64748b"
+                value={batch.weight}
+                onChangeText={(v) => updateBatch(index, "weight", v)}
               />
-              <Text style={styles.unitText}>KG</Text>
+              
+              {/* 3. 次数 */}
               <TextInput
                 style={styles.input}
                 keyboardType="numeric"
-                placeholder="次"
-                value={set.reps}
-                onChangeText={(v) => updateSet(index, "reps", v)}
+                placeholder="0"
+                placeholderTextColor="#64748b"
+                value={batch.reps}
+                onChangeText={(v) => updateBatch(index, "reps", v)}
               />
-              <Text style={styles.unitText}>次</Text>
+
+              {/* 4. 组数 (新增) */}
+              <TextInput
+                style={[styles.input, styles.inputCount]} // 加个特殊样式区分
+                keyboardType="numeric"
+                placeholder="0"
+                placeholderTextColor="#64748b"
+                value={batch.count}
+                onChangeText={(v) => updateBatch(index, "count", v)}
+              />
             </View>
           ))}
+
           <View style={styles.setActions}>
-            <TouchableOpacity onPress={addSet} style={styles.setBtn}>
-              <Text style={styles.setBtnText}>+ 加一组</Text>
+            <TouchableOpacity onPress={addBatchRow} style={styles.setBtn}>
+              <Text style={styles.setBtnText}>+ 增加录入行</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={removeSet} style={[styles.setBtn, styles.setBtnDestructive]}>
-              <Text style={styles.setBtnTextDestructive}>- 减一组</Text>
+            <TouchableOpacity onPress={removeBatchRow} style={[styles.setBtn, styles.setBtnDestructive]}>
+              <Text style={styles.setBtnTextDestructive}>- 删除一行</Text>
             </TouchableOpacity>
           </View>
           <TouchableOpacity onPress={handleSubmit} style={styles.submitBtn}>
-            <Text style={styles.submitBtnText}>保存记录</Text>
+            <Text style={styles.submitBtnText}>保存全部记录</Text>
           </TouchableOpacity>
         </View>
 
@@ -549,6 +591,8 @@ function ExerciseDetailScreen({
     </View>
   );
 }
+
+
 
 // 4. 添加动作
 function AddExerciseScreen({ categories, onSave, onBack }: any) {
@@ -679,9 +723,9 @@ function Header({ title, onBack }: any) {
   );
 }
 
-// ---------- 样式表 (深色模式) ----------
+// ---------- 样式表 (深色模式 + 4列布局) ----------
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0f172a" }, // 深色背景
+  safe: { flex: 1, backgroundColor: "#0f172a" },
   root: { flex: 1 },
   loadingContainer: {
     flex: 1,
@@ -698,13 +742,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "800",
-    color: "#f8fafc", // 白色标题
+    color: "#f8fafc",
     marginBottom: 20,
   },
   userRow: {
     flexDirection: "row",
     marginBottom: 20,
-    backgroundColor: "#1e293b", // 深灰卡片
+    backgroundColor: "#1e293b",
     padding: 8,
     borderRadius: 6,
     borderWidth: 1,
@@ -722,8 +766,8 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 3,
   },
-  planButtonActive: { backgroundColor: "#0ea5e9" }, // 亮蓝色
-  planButtonIdle: { backgroundColor: "#334155" }, // 深灰色
+  planButtonActive: { backgroundColor: "#0ea5e9" },
+  planButtonIdle: { backgroundColor: "#334155" },
   planButtonText: {
     color: "#fff",
     fontSize: 18,
@@ -742,7 +786,7 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     width: "48%",
-    backgroundColor: "#1e293b", // 深色卡片
+    backgroundColor: "#1e293b",
     padding: 20,
     marginBottom: 15,
     borderRadius: 12,
@@ -752,14 +796,14 @@ const styles = StyleSheet.create({
   },
   categoryText: { fontSize: 16, fontWeight: "600", color: "#f1f5f9" },
   primaryButton: {
-    backgroundColor: "#38bdf8", // 亮青色按钮
+    backgroundColor: "#38bdf8",
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
     marginTop: 10,
   },
   primaryButtonText: {
-    color: "#0f172a", // 深色文字以对比亮背景
+    color: "#0f172a",
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -775,7 +819,7 @@ const styles = StyleSheet.create({
   exerciseItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1e293b", // 深色列表项
+    backgroundColor: "#1e293b",
     marginBottom: 12,
     borderRadius: 10,
     overflow: "hidden",
@@ -807,7 +851,7 @@ const styles = StyleSheet.create({
   },
   actionButtonAdd: { backgroundColor: "#22c55e" },
   actionButtonRemove: { backgroundColor: "#f59e0b" },
-  actionButtonText: { color: "#000", fontWeight: "bold", fontSize: 16 }, // 按钮文字改深色增加对比
+  actionButtonText: { color: "#000", fontWeight: "bold", fontSize: 16 },
   deleteButton: { backgroundColor: "#ef4444", marginTop: 10 },
   deleteButtonText: { color: "#fff", fontWeight: "bold" },
   
@@ -826,24 +870,58 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     color: "#f1f5f9",
   },
+  
+  // --- 4列布局样式 ---
+  tableHeader: {
+    flexDirection: "row",
+    marginBottom: 10,
+    paddingHorizontal: 5,
+  },
+  tableHeaderText: {
+    flex: 1,
+    color: "#94a3b8",
+    fontSize: 13, // 稍微调小一点以容纳4列
+    fontWeight: "600",
+    textAlign: "center",
+  },
   setRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
+    gap: 8, // 列间距
   },
-  setLabel: { width: 60, color: "#94a3b8" },
+  setIndexContainer: {
+    flex: 0.6, // 序号列稍微窄一点
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#334155",
+    height: 45,
+    borderRadius: 6,
+  },
+  setIndexText: {
+    color: "#e2e8f0",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
   input: {
     flex: 1,
     borderWidth: 1,
     borderColor: "#475569",
     borderRadius: 6,
-    padding: 8,
+    padding: 0, // 减小内边距，防止数字显示不全
     textAlign: "center",
-    backgroundColor: "#334155", // 输入框深色背景
-    color: "#fff", // 输入文字白色
+    backgroundColor: "#1e293b",
+    color: "#fff",
+    fontSize: 16,
+    height: 45,
   },
-  unitText: { marginLeft: 5, marginRight: 10, color: "#94a3b8" },
-  setActions: { flexDirection: "row", justifyContent: "space-between" },
+  inputCount: {
+    backgroundColor: "#1e293b", // 可以给组数输入框一个不同的背景色，或者保持一致
+    borderColor: "#38bdf8", // 给组数一个亮色边框突出显示
+  },
+  // -----------------------
+
+  setActions: { flexDirection: "row", justifyContent: "space-between", marginTop: 10 },
   setBtn: { padding: 10 },
   setBtnDestructive: { opacity: 0.7 },
   setBtnText: { color: "#38bdf8", fontWeight: "600" },
@@ -896,7 +974,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#1e293b",
     marginBottom: 20,
     fontSize: 16,
-    color: "#fff", // 输入文字白色
+    color: "#fff",
   },
   tagContainer: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   tag: {
@@ -929,7 +1007,7 @@ const styles = StyleSheet.create({
   },
   workoutItemDone: { 
     borderLeftColor: "#22c55e", 
-    backgroundColor: "#064e3b", // 深绿色背景
+    backgroundColor: "#064e3b",
     borderColor: "#065f46"
   },
   workoutInfo: { flex: 1 },
@@ -937,7 +1015,7 @@ const styles = StyleSheet.create({
   workoutStatus: { marginTop: 4, color: "#94a3b8", fontSize: 12 },
   removeBtn: {
     padding: 10,
-    backgroundColor: "#450a0a", // 深红色背景
+    backgroundColor: "#450a0a",
     borderRadius: 20,
     width: 40,
     height: 40,
@@ -963,3 +1041,5 @@ const styles = StyleSheet.create({
   backText: { color: "#38bdf8", fontSize: 16 },
   headerTitle: { fontSize: 18, fontWeight: "bold", color: "#f1f5f9" },
 });
+
+
