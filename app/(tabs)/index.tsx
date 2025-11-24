@@ -7,17 +7,20 @@ import {
 } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
+  Platform, // 关键引入
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
+// ---------- 常量定义 ----------
 const CATEGORIES = ["背部", "胸部", "肩部", "腿部", "手臂", "核心"];
 
 const STORAGE_KEYS = {
@@ -28,6 +31,7 @@ const STORAGE_KEYS = {
 
 const userIdPlaceholder = "LOCAL_USER_ANDROID";
 
+// ---------- 类型定义 ----------
 type Exercise = {
   id: string;
   name: string;
@@ -56,6 +60,7 @@ type Page =
   | { view: "add" }
   | { view: "workout" };
 
+// ---------- 主入口组件 ----------
 export default function App() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [logs, setLogs] = useState<LogItem[]>([]);
@@ -63,7 +68,7 @@ export default function App() {
   const [page, setPage] = useState<Page>({ view: "home" });
   const [isLoading, setIsLoading] = useState(true);
 
-  // ---------- 从 AsyncStorage 加载 ----------
+  // 1. 加载数据
   useEffect(() => {
     const loadAll = async () => {
       try {
@@ -84,27 +89,27 @@ export default function App() {
     loadAll();
   }, []);
 
-  // ---------- 保存到 AsyncStorage ----------
+  // 2. 自动保存
   useEffect(() => {
-    AsyncStorage.setItem(STORAGE_KEYS.exercises, JSON.stringify(exercises)).catch(
-      () => {}
-    );
+    AsyncStorage.setItem(STORAGE_KEYS.exercises, JSON.stringify(exercises)).catch(() => {});
   }, [exercises]);
 
   useEffect(() => {
-    AsyncStorage.setItem(STORAGE_KEYS.logs, JSON.stringify(logs)).catch(
-      () => {}
-    );
+    AsyncStorage.setItem(STORAGE_KEYS.logs, JSON.stringify(logs)).catch(() => {});
   }, [logs]);
 
   useEffect(() => {
-    AsyncStorage.setItem(
-      STORAGE_KEYS.currentWorkout,
-      JSON.stringify(currentWorkout)
-    ).catch(() => {});
+    AsyncStorage.setItem(STORAGE_KEYS.currentWorkout, JSON.stringify(currentWorkout)).catch(() => {});
   }, [currentWorkout]);
 
-  // ---------- 数据操作 ----------
+  // 3. 核心操作逻辑
+  const handleDeleteExercise = useCallback((exerciseId: string) => {
+    setExercises((prev) => prev.filter((e) => e.id !== exerciseId));
+    setLogs((prev) => prev.filter((l) => l.exerciseId !== exerciseId));
+    setCurrentWorkout((prev) => prev.filter((id) => id !== exerciseId));
+    setPage({ view: "home" });
+  }, []);
+
   const handleAddExercise = useCallback((newExerciseData: any) => {
     const newId = `e-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const newExercise: Exercise = {
@@ -117,9 +122,7 @@ export default function App() {
         )}`,
       createdAt: { seconds: Date.now() / 1000 },
     };
-
     setExercises((prev) => [...prev, newExercise]);
-
     if (!newExerciseData.isBatch) {
       setPage({ view: "list", category: newExercise.category });
     }
@@ -127,107 +130,51 @@ export default function App() {
 
   const handleInitializeMockData = useCallback(() => {
     if (exercises.length > 0) return;
-
     const mockExercises: Exercise[] = [
-      {
-        id: `e-mock-0-${Date.now()}`,
-        name: "杠铃卧推",
-        category: "胸部",
-        image: "https://placehold.co/600x400/38bdf8/000000?text=Bench",
-        createdAt: { seconds: Date.now() / 1000 },
-      },
-      {
-        id: `e-mock-1-${Date.now()}`,
-        name: "坐姿划船",
-        category: "背部",
-        image: "https://placehold.co/600x400/22c55e/000000?text=Row",
-        createdAt: { seconds: Date.now() / 1000 + 1 },
-      },
-      {
-        id: `e-mock-2-${Date.now()}`,
-        name: "杠铃深蹲",
-        category: "腿部",
-        image: "https://placehold.co/600x400/f97316/000000?text=Squat",
-        createdAt: { seconds: Date.now() / 1000 + 2 },
-      },
-      {
-        id: `e-mock-3-${Date.now()}`,
-        name: "站姿推举",
-        category: "肩部",
-        image: "https://placehold.co/600x400/c026d3/000000?text=Press",
-        createdAt: { seconds: Date.now() / 1000 + 3 },
-      },
-      {
-        id: `e-mock-4-${Date.now()}`,
-        name: "杠铃弯举",
-        category: "手臂",
-        image: "https://placehold.co/600x400/facc15/000000?text=Curl",
-        createdAt: { seconds: Date.now() / 1000 + 4 },
-      },
-      {
-        id: `e-mock-5-${Date.now()}`,
-        name: "悬垂举腿",
-        category: "核心",
-        image: "https://placehold.co/600x400/14b8a6/000000?text=Core",
-        createdAt: { seconds: Date.now() / 1000 + 5 },
-      },
+      { id: `e-mock-0-${Date.now()}`, name: "杠铃卧推", category: "胸部", image: "https://placehold.co/600x400/38bdf8/000000?text=Bench", createdAt: { seconds: Date.now() / 1000 } },
+      { id: `e-mock-1-${Date.now()}`, name: "坐姿划船", category: "背部", image: "https://placehold.co/600x400/22c55e/000000?text=Row", createdAt: { seconds: Date.now() / 1000 + 1 } },
+      { id: `e-mock-2-${Date.now()}`, name: "杠铃深蹲", category: "腿部", image: "https://placehold.co/600x400/f97316/000000?text=Squat", createdAt: { seconds: Date.now() / 1000 + 2 } },
+      { id: `e-mock-3-${Date.now()}`, name: "站姿推举", category: "肩部", image: "https://placehold.co/600x400/c026d3/000000?text=Press", createdAt: { seconds: Date.now() / 1000 + 3 } },
+      { id: `e-mock-4-${Date.now()}`, name: "杠铃弯举", category: "手臂", image: "https://placehold.co/600x400/facc15/000000?text=Curl", createdAt: { seconds: Date.now() / 1000 + 4 } },
+      { id: `e-mock-5-${Date.now()}`, name: "悬垂举腿", category: "核心", image: "https://placehold.co/600x400/14b8a6/000000?text=Core", createdAt: { seconds: Date.now() / 1000 + 5 } },
     ];
-
     setExercises((prev) => [...prev, ...mockExercises]);
   }, [exercises.length]);
 
   const handleAddLog = useCallback(
     (newLogData: { exerciseId: string; sets: SetItem[] }) => {
-      const newId = `l-${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 9)}`;
+      const newId = `l-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const newLog: LogItem = {
         id: newId,
         ...newLogData,
         date: new Date().toISOString().split("T")[0],
         createdAt: { seconds: Date.now() / 1000 },
       };
-
       setLogs((prev) => [...prev, newLog]);
-
       if (currentWorkout.includes(newLogData.exerciseId)) {
-        setCurrentWorkout((prev) =>
-          prev.filter((id) => id !== newLogData.exerciseId)
-        );
+        setCurrentWorkout((prev) => prev.filter((id) => id !== newLogData.exerciseId));
       }
     },
     [currentWorkout]
   );
 
-  // ---------- 导航 ----------
+  // 4. 导航逻辑
   const goToHome = useCallback(() => setPage({ view: "home" }), []);
-  const goToList = useCallback(
-    (category: string) => setPage({ view: "list", category }),
-    []
-  );
-  const goToDetail = useCallback(
-    (exerciseId: string) => setPage({ view: "detail", exerciseId }),
-    []
-  );
-  const goToAddExercise = useCallback(
-    () => setPage({ view: "add" }),
-    []
-  );
-  const goToWorkout = useCallback(
-    () => setPage({ view: "workout" }),
-    []
-  );
+  const goToList = useCallback((category: string) => setPage({ view: "list", category }), []);
+  const goToDetail = useCallback((exerciseId: string) => setPage({ view: "detail", exerciseId }), []);
+  const goToAddExercise = useCallback(() => setPage({ view: "add" }), []);
+  const goToWorkout = useCallback(() => setPage({ view: "workout" }), []);
   const goToDetailFromWorkout = useCallback(
-    (exerciseId: string) =>
-      setPage({ view: "detail", exerciseId, from: "workout" }),
+    (exerciseId: string) => setPage({ view: "detail", exerciseId, from: "workout" }),
     []
   );
 
   const addExerciseToWorkout = useCallback(
     (exerciseId: string) => {
-      setCurrentWorkout((prev) =>
-        prev.includes(exerciseId) ? prev : [...prev, exerciseId]
-      );
+      setCurrentWorkout((prev) => {
+        if (prev.includes(exerciseId)) return prev.filter((id) => id !== exerciseId);
+        return [...prev, exerciseId];
+      });
       if (page.view !== "workout") {
         goToWorkout();
       }
@@ -239,7 +186,7 @@ export default function App() {
     setCurrentWorkout((prev) => prev.filter((id) => id !== exerciseId));
   }, []);
 
-  // ---------- 页面渲染 ----------
+  // 5. 页面渲染路由
   const renderPage = () => {
     if (isLoading) {
       return (
@@ -273,9 +220,7 @@ export default function App() {
           />
         );
       case "detail": {
-        const currentExercise = exercises.find(
-          (e) => e.id === page.exerciseId
-        );
+        const currentExercise = exercises.find((e) => e.id === page.exerciseId);
         const backHandler =
           page.from === "workout"
             ? goToWorkout
@@ -290,6 +235,7 @@ export default function App() {
             onBack={backHandler}
             onAddToWorkout={addExerciseToWorkout}
             isCurrentWorkout={currentWorkout.includes(page.exerciseId)}
+            onDeleteExercise={handleDeleteExercise}
           />
         );
       }
@@ -320,20 +266,17 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.root}>
-        {renderPage()}
-      </View>
-
+      <View style={styles.root}>{renderPage()}</View>
       <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          运行模式: 本地存储 (AsyncStorage)
-        </Text>
+        <Text style={styles.footerText}>运行模式: 本地存储 (AsyncStorage)</Text>
       </View>
     </SafeAreaView>
   );
 }
 
-// ---------- 1. 首页 ----------
+// ---------- 子页面组件 ----------
+
+// 1. 首页
 function HomeScreen({
   onSelectCategory,
   onAddExercise,
@@ -344,12 +287,8 @@ function HomeScreen({
   exercises,
 }: any) {
   return (
-    <ScrollView
-      contentContainerStyle={styles.screenContainer}
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView contentContainerStyle={styles.screenContainer} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>健身日志</Text>
-
       <View style={styles.userRow}>
         <Text style={styles.userLabel}>当前用户ID：</Text>
         <Text style={styles.userValue}>{userId}</Text>
@@ -359,9 +298,7 @@ function HomeScreen({
         onPress={onGoToWorkout}
         style={[
           styles.planButton,
-          hasActiveWorkout > 0
-            ? styles.planButtonActive
-            : styles.planButtonIdle,
+          hasActiveWorkout > 0 ? styles.planButtonActive : styles.planButtonIdle,
         ]}
       >
         <Text style={styles.planButtonText}>
@@ -372,7 +309,6 @@ function HomeScreen({
       </TouchableOpacity>
 
       <Text style={styles.sectionTitle}>选择训练部位</Text>
-
       <View style={styles.categoryGrid}>
         {CATEGORIES.map((category) => (
           <TouchableOpacity
@@ -385,42 +321,26 @@ function HomeScreen({
         ))}
       </View>
 
-      <TouchableOpacity
-        onPress={onAddExercise}
-        style={styles.primaryButton}
-      >
+      <TouchableOpacity onPress={onAddExercise} style={styles.primaryButton}>
         <Text style={styles.primaryButtonText}>+ 添加自定义动作</Text>
       </TouchableOpacity>
 
       {exercises.length === 0 && (
-        <TouchableOpacity
-          onPress={onInitializeMockData}
-          style={styles.secondaryButton}
-        >
-          <Text style={styles.secondaryButtonText}>
-            一键初始化示例训练动作（推荐）
-          </Text>
+        <TouchableOpacity onPress={onInitializeMockData} style={styles.secondaryButton}>
+          <Text style={styles.secondaryButtonText}>一键初始化示例训练动作（推荐）</Text>
         </TouchableOpacity>
       )}
     </ScrollView>
   );
 }
 
-// ---------- 2. 动作列表 ----------
-function ExerciseListScreen({
-  category,
-  exercises,
-  onSelectExercise,
-  onBack,
-}: any) {
+// 2. 动作列表
+function ExerciseListScreen({ category, exercises, onSelectExercise, onBack }: any) {
   const filtered = useMemo(
     () =>
       exercises
         .filter((e: Exercise) => e.category === category)
-        .sort(
-          (a: Exercise, b: Exercise) =>
-            (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
-        ),
+        .sort((a: Exercise, b: Exercise) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)),
     [category, exercises]
   );
 
@@ -429,22 +349,17 @@ function ExerciseListScreen({
       <Header title={category} onBack={onBack} />
       <FlatList
         data={filtered}
-        keyExtractor={(item: Exercise) => item.id}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            该部位暂无动作，请返回主页添加。
-          </Text>
+          <Text style={styles.emptyText}>该部位暂无动作，请返回主页添加。</Text>
         }
         renderItem={({ item }) => (
           <TouchableOpacity
             onPress={() => onSelectExercise(item.id)}
             style={styles.exerciseItem}
           >
-            <Image
-              source={{ uri: item.image }}
-              style={styles.exerciseImage}
-            />
+            <Image source={{ uri: item.image }} style={styles.exerciseImage} />
             <Text style={styles.exerciseName}>{item.name}</Text>
           </TouchableOpacity>
         )}
@@ -453,7 +368,7 @@ function ExerciseListScreen({
   );
 }
 
-// ---------- 3. 动作详情 ----------
+// 3. 动作详情 (修复删除确认框)
 function ExerciseDetailScreen({
   exerciseId,
   exercises,
@@ -462,59 +377,64 @@ function ExerciseDetailScreen({
   onBack,
   onAddToWorkout,
   isCurrentWorkout,
+  onDeleteExercise,
 }: any) {
   const exercise: Exercise | undefined = useMemo(
     () => exercises.find((e: Exercise) => e.id === exerciseId),
     [exerciseId, exercises]
   );
 
+  // 修复 1: 适配 Web 环境的删除确认
+  const confirmDelete = () => {
+    if (!exercise) return;
+    if (Platform.OS === 'web') {
+      if (window.confirm(`确定要删除「${exercise.name}」以及所有相关训练记录吗？`)) {
+        onDeleteExercise(exerciseId);
+      }
+      return;
+    }
+    Alert.alert(
+      "删除动作",
+      `确定要删除「${exercise.name}」以及所有相关训练记录吗？`,
+      [
+        { text: "取消", style: "cancel" },
+        { text: "删除", style: "destructive", onPress: () => onDeleteExercise(exerciseId) },
+      ]
+    );
+  };
+
   const exerciseLogs: LogItem[] = useMemo(
     () =>
       logs
         .filter((l: LogItem) => l.exerciseId === exerciseId)
-        .sort(
-          (a: LogItem, b: LogItem) =>
-            (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
-        ),
+        .sort((a: LogItem, b: LogItem) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)),
     [exerciseId, logs]
   );
 
   const lastLog = exerciseLogs[0];
-
-  const [currentSets, setCurrentSets] = useState<
-    { weight: string; reps: string }[]
-  >(
+  const [currentSets, setCurrentSets] = useState<{ weight: string; reps: string }[]>(
     lastLog?.sets?.length
-      ? lastLog.sets.map((s) => ({
-          weight: String(s.weight ?? ""),
-          reps: String(s.reps ?? ""),
-        }))
+      ? lastLog.sets.map((s) => ({ weight: String(s.weight ?? ""), reps: String(s.reps ?? "") }))
       : [{ weight: "", reps: "" }]
   );
 
   useEffect(() => {
     if (lastLog?.sets?.length) {
       setCurrentSets(
-        lastLog.sets.map((s) => ({
-          weight: String(s.weight ?? ""),
-          reps: String(s.reps ?? ""),
-        }))
+        lastLog.sets.map((s) => ({ weight: String(s.weight ?? ""), reps: String(s.reps ?? "") }))
       );
     } else {
       setCurrentSets([{ weight: "", reps: "" }]);
     }
   }, [exerciseId]);
 
-  const updateSet = useCallback(
-    (index: number, field: "weight" | "reps", value: string) => {
-      setCurrentSets((prev) => {
-        const copy = [...prev];
-        copy[index] = { ...copy[index], [field]: value };
-        return copy;
-      });
-    },
-    []
-  );
+  const updateSet = useCallback((index: number, field: "weight" | "reps", value: string) => {
+    setCurrentSets((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  }, []);
 
   const addSet = useCallback(() => {
     setCurrentSets((prev) => {
@@ -524,243 +444,160 @@ function ExerciseDetailScreen({
   }, []);
 
   const removeSet = useCallback(() => {
-    setCurrentSets((prev) =>
-      prev.length > 1 ? prev.slice(0, -1) : [{ weight: "", reps: "" }]
-    );
+    setCurrentSets((prev) => (prev.length > 1 ? prev.slice(0, -1) : [{ weight: "", reps: "" }]));
   }, []);
 
   const handleSubmit = () => {
     const validSets: SetItem[] = currentSets
       .filter((s) => s.weight !== "" && s.reps !== "")
-      .map((s) => ({
-        weight: Number(s.weight),
-        reps: Number(s.reps),
-      }))
-      .filter(
-        (s) =>
-          !Number.isNaN(s.weight) &&
-          !Number.isNaN(s.reps) &&
-          s.weight > 0 &&
-          s.reps > 0
-      );
+      .map((s) => ({ weight: Number(s.weight), reps: Number(s.reps) }))
+      .filter((s) => !Number.isNaN(s.weight) && !Number.isNaN(s.reps) && s.weight > 0 && s.reps > 0);
 
     if (!validSets.length) {
-      alert("请至少填写一组有效数据");
+      if (Platform.OS === 'web') {
+        window.alert("请至少填写一组有效数据");
+      } else {
+        Alert.alert("提示", "请至少填写一组有效数据");
+      }
       return;
     }
-
     onAddLog({ exerciseId, sets: validSets });
-    setCurrentSets([{ weight: "", reps: "" }]);
+    if (Platform.OS === 'web') {
+      window.alert("记录已保存！");
+    } else {
+      Alert.alert("成功", "记录已保存！");
+    }
   };
 
-  const formatLastLog = (log?: LogItem) => {
-    if (!log || !log.sets?.length) return "暂无记录";
-    const summary = log.sets
-      .map((s) => `${s.weight}kg x ${s.reps}`)
-      .join(", ");
-    return `${log.sets.length} 组: ${summary}`;
-  };
-
-  if (!exercise) {
-    return (
-      <View style={{ flex: 1 }}>
-        <Header title="错误" onBack={onBack} />
-        <View style={styles.screenContainer}>
-          <Text style={styles.emptyText}>未找到动作</Text>
-        </View>
-      </View>
-    );
-  }
+  if (!exercise) return null;
 
   return (
     <View style={{ flex: 1 }}>
       <Header title={exercise.name} onBack={onBack} />
-      <ScrollView>
-        <Image
-          source={{ uri: exercise.image }}
-          style={styles.detailImage}
-        />
-
-        <View style={styles.screenContainer}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Image source={{ uri: exercise.image }} style={styles.detailImage} />
+        <View style={styles.actionRow}>
           <TouchableOpacity
             onPress={() => onAddToWorkout(exerciseId)}
             style={[
-              styles.planButton,
-              isCurrentWorkout
-                ? styles.planButtonRemove
-                : styles.planButtonAdd,
+              styles.actionButton,
+              isCurrentWorkout ? styles.actionButtonRemove : styles.actionButtonAdd,
             ]}
           >
-            <Text style={styles.planButtonText}>
-              {isCurrentWorkout ? "从今日计划中移除" : "加入今日训练计划"}
+            <Text style={styles.actionButtonText}>
+              {isCurrentWorkout ? "从今日计划移除" : "加入今日计划"}
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={confirmDelete} style={[styles.actionButton, styles.deleteButton]}>
+            <Text style={styles.deleteButtonText}>删除该动作 (含历史记录)</Text>
+          </TouchableOpacity>
+        </View>
 
-          <View style={styles.lastLogBox}>
-            <Text style={styles.lastLogTitle}>
-              上次记录 ({lastLog?.date || "N/A"})
-            </Text>
-            <Text style={styles.lastLogText}>
-              {formatLastLog(lastLog)}
-            </Text>
-          </View>
-
-          <Text style={styles.sectionTitle}>
-            记录组数 ({currentSets.length} 组)
-          </Text>
-
-          {currentSets.map((set, idx) => (
-            <View key={idx} style={styles.setRow}>
-              <Text style={styles.setIndex}>#{idx + 1}</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>📝 新增记录</Text>
+          {currentSets.map((set, index) => (
+            <View key={index} style={styles.setRow}>
+              <Text style={styles.setLabel}>第 {index + 1} 组</Text>
               <TextInput
-                style={styles.setInput}
+                style={styles.input}
+                keyboardType="numeric"
+                placeholder="kg"
                 value={set.weight}
-                onChangeText={(v) => updateSet(idx, "weight", v)}
-                keyboardType="decimal-pad"
-                placeholder="重量 (kg)"
-                placeholderTextColor="#9ca3af"
+                onChangeText={(v) => updateSet(index, "weight", v)}
               />
-              <Text style={styles.setMultiply}>x</Text>
+              <Text style={styles.unitText}>KG</Text>
               <TextInput
-                style={styles.setInput}
+                style={styles.input}
+                keyboardType="numeric"
+                placeholder="次"
                 value={set.reps}
-                onChangeText={(v) => updateSet(idx, "reps", v)}
-                keyboardType="number-pad"
-                placeholder="次数"
-                placeholderTextColor="#9ca3af"
+                onChangeText={(v) => updateSet(index, "reps", v)}
               />
+              <Text style={styles.unitText}>次</Text>
             </View>
           ))}
-
-          <View style={styles.setButtonsRow}>
-            <TouchableOpacity
-              onPress={addSet}
-              style={styles.secondaryButton}
-            >
-              <Text style={styles.secondaryButtonText}>
-                + 添加下一组
-              </Text>
+          <View style={styles.setActions}>
+            <TouchableOpacity onPress={addSet} style={styles.setBtn}>
+              <Text style={styles.setBtnText}>+ 加一组</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={removeSet}
-              style={[styles.secondaryButton, { marginLeft: 8 }]}
-            >
-              <Text style={styles.secondaryButtonText}>删除最后一组</Text>
+            <TouchableOpacity onPress={removeSet} style={[styles.setBtn, styles.setBtnDestructive]}>
+              <Text style={styles.setBtnTextDestructive}>- 减一组</Text>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            onPress={handleSubmit}
-            style={styles.primaryButton}
-          >
-            <Text style={styles.primaryButtonText}>
-              保存本次训练记录
-            </Text>
+          <TouchableOpacity onPress={handleSubmit} style={styles.submitBtn}>
+            <Text style={styles.submitBtnText}>保存记录</Text>
           </TouchableOpacity>
+        </View>
 
-          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
-            历史记录 ({exerciseLogs.length} 天)
-          </Text>
-
+        <View style={styles.historyContainer}>
+          <Text style={styles.historyTitle}>📅 历史记录</Text>
           {exerciseLogs.map((log) => (
-            <View key={log.id} style={styles.logItem}>
-              <View style={styles.logHeaderRow}>
-                <Text style={styles.logDate}>{log.date}</Text>
-                <Text style={styles.logCount}>
-                  共 {log.sets?.length || 0} 组
-                </Text>
-              </View>
-              {log.sets?.map((s, i) => (
-                <View key={i} style={styles.logSetRow}>
-                  <Text style={styles.logSetLabel}>第 {i + 1} 组</Text>
-                  <Text style={styles.logSetValue}>
-                    {s.weight} kg x {s.reps} 次
+            <View key={log.id} style={styles.logCard}>
+              <Text style={styles.logDate}>{log.date}</Text>
+              <View style={styles.logSets}>
+                {log.sets.map((s, i) => (
+                  <Text key={i} style={styles.logSetText}>
+                    {s.weight}kg × {s.reps}
                   </Text>
-                </View>
-              ))}
+                ))}
+              </View>
             </View>
           ))}
+          {exerciseLogs.length === 0 && <Text style={styles.emptyText}>暂无历史记录</Text>}
         </View>
       </ScrollView>
     </View>
   );
 }
 
-// ---------- 4. 添加动作 ----------
+// 4. 添加动作
 function AddExerciseScreen({ categories, onSave, onBack }: any) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState(categories[0]);
-  const [image, setImage] = useState("");
 
-  const handleSubmit = () => {
-    if (!name || !category) {
-      alert("请填写动作名称并选择部位");
+  const handleSave = () => {
+    if (!name.trim()) {
+      if (Platform.OS === 'web') window.alert("请输入动作名称");
+      else Alert.alert("提示", "请输入动作名称");
       return;
     }
-    onSave({ name, category, image });
-    onBack();
+    onSave({ name, category });
   };
 
   return (
     <View style={{ flex: 1 }}>
-      <Header title="添加新动作" onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.screenContainer}>
+      <Header title="添加动作" onBack={onBack} />
+      <View style={styles.formContainer}>
         <Text style={styles.label}>动作名称</Text>
         <TextInput
-          style={styles.input}
+          style={styles.textInput}
+          placeholder="例如：哑铃卧推"
           value={name}
           onChangeText={setName}
-          placeholder="例如：单臂哑铃划船"
-          placeholderTextColor="#9ca3af"
         />
-
-        <Text style={styles.label}>选择部位</Text>
-        <View style={styles.categoryRow}>
-          {categories.map((c: string) => {
-            const selected = c === category;
-            return (
-              <TouchableOpacity
-                key={c}
-                onPress={() => setCategory(c)}
-                style={[
-                  styles.categoryPill,
-                  selected && styles.categoryPillSelected,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.categoryPillText,
-                    selected && styles.categoryPillTextSelected,
-                  ]}
-                >
-                  {c}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+        <Text style={styles.label}>部位分类</Text>
+        <View style={styles.tagContainer}>
+          {categories.map((c: string) => (
+            <TouchableOpacity
+              key={c}
+              onPress={() => setCategory(c)}
+              style={[styles.tag, category === c ? styles.tagActive : styles.tagInactive]}
+            >
+              <Text style={category === c ? styles.tagTextActive : styles.tagTextInactive}>
+                {c}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
-
-        <Text style={styles.label}>图片 URL（可选）</Text>
-        <TextInput
-          style={styles.input}
-          value={image}
-          onChangeText={setImage}
-          placeholder="粘贴图片网址（可留空）"
-          placeholderTextColor="#9ca3af"
-        />
-
-        <TouchableOpacity
-          onPress={handleSubmit}
-          style={[styles.primaryButton, { marginTop: 24 }]}
-        >
-          <Text style={styles.primaryButtonText}>保存动作</Text>
+        <TouchableOpacity onPress={handleSave} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>保存</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </View>
   );
 }
 
-// ---------- 5. 今日训练计划 ----------
+// 5. 今日训练计划 (修复 X 按钮)
 function WorkoutScreen({
   currentWorkout,
   exercises,
@@ -770,507 +607,257 @@ function WorkoutScreen({
   onRemoveExercise,
   onAddExercise,
 }: any) {
-  const workoutExercises = useMemo(() => {
+  const workoutList = useMemo(() => {
     return currentWorkout
       .map((id: string) => exercises.find((e: Exercise) => e.id === id))
-      .filter(Boolean)
-      .map((exercise: Exercise) => {
-        const exerciseLogs: LogItem[] = logs
-          .filter((log: LogItem) => log.exerciseId === exercise.id)
-          .sort(
-            (a: LogItem, b: LogItem) =>
-              (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
-          );
-        return {
-          ...exercise,
-          lastLogDate: exerciseLogs[0]?.date || "无记录",
-        };
-      });
-  }, [currentWorkout, exercises, logs]);
+      .filter(Boolean);
+  }, [currentWorkout, exercises]);
 
-  const availableExercises = useMemo(
-    () =>
-      exercises.filter(
-        (e: Exercise) => !currentWorkout.includes(e.id)
-      ),
-    [currentWorkout, exercises]
-  );
-
-  const [isAdding, setIsAdding] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0]);
+  const checkDone = (exerciseId: string) => {
+    const today = new Date().toISOString().split("T")[0];
+    return logs.some((l: LogItem) => l.exerciseId === exerciseId && l.date === today);
+  };
 
   return (
     <View style={{ flex: 1 }}>
-      <Header title="今日训练计划" onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.screenContainer}>
-        <Text style={styles.sectionTitle}>
-          待完成动作 ({workoutExercises.length} / {exercises.length})
-        </Text>
-
-        {workoutExercises.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>
-              点击下方按钮添加动作，开始你的训练！
-            </Text>
+      <Header title="🔥 今日训练计划" onBack={onBack} />
+      <FlatList
+        data={workoutList}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>今日计划为空</Text>
+            <Text style={styles.emptySubText}>去动作库里添加一些动作吧！</Text>
           </View>
-        ) : (
-          workoutExercises.map((exercise: any) => (
-            <View key={exercise.id} style={styles.workoutItem}>
-              <TouchableOpacity
-                style={{ flex: 1 }}
-                onPress={() => onSelectExercise(exercise.id)}
-              >
-                <Text style={styles.workoutName}>{exercise.name}</Text>
-                <Text style={styles.workoutSub}>
-                  上次：{exercise.lastLogDate}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => onRemoveExercise(exercise.id)}
-              >
-                <Text style={styles.removeText}>×</Text>
-              </TouchableOpacity>
-            </View>
-          ))
-        )}
-
-        {!isAdding && (
-          <TouchableOpacity
-            onPress={() => setIsAdding(true)}
-            style={[styles.primaryButton, { marginTop: 16 }]}
-          >
-            <Text style={styles.primaryButtonText}>
-              + 从动作库中添加
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {isAdding && (
-          <View style={styles.addBox}>
-            <Text style={styles.label}>选择部位</Text>
-            <View style={styles.categoryRow}>
-              {CATEGORIES.map((c) => {
-                const selected = c === selectedCategory;
-                return (
-                  <TouchableOpacity
-                    key={c}
-                    onPress={() => setSelectedCategory(c)}
-                    style={[
-                      styles.categoryPill,
-                      selected && styles.categoryPillSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.categoryPillText,
-                        selected && styles.categoryPillTextSelected,
-                      ]}
-                    >
-                      {c}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {availableExercises.filter(
-              (e: Exercise) => e.category === selectedCategory
-            ).length === 0 ? (
-              <Text style={styles.emptyText}>
-                该部位所有动作均已加入计划。
-              </Text>
-            ) : (
-              availableExercises
-                .filter(
-                  (e: Exercise) => e.category === selectedCategory
-                )
-                .map((exercise: Exercise) => (
-                  <TouchableOpacity
-                    key={exercise.id}
-                    onPress={() => onAddExercise(exercise.id)}
-                    style={styles.addExerciseRow}
-                  >
-                    <Text style={styles.workoutName}>
-                      {exercise.name}
-                    </Text>
-                    <Text style={styles.addPlus}>+</Text>
-                  </TouchableOpacity>
-                ))
-            )}
-
+        }
+        renderItem={({ item }) => {
+          const isDone = checkDone(item.id);
+          return (
             <TouchableOpacity
-              onPress={() => setIsAdding(false)}
-              style={[
-                styles.secondaryButton,
-                { marginTop: 12, alignSelf: "stretch" },
-              ]}
+              onPress={() => onSelectExercise(item.id)}
+              style={[styles.workoutItem, isDone && styles.workoutItemDone]}
             >
-              <Text style={styles.secondaryButtonText}>完成添加</Text>
+              <View style={styles.workoutInfo}>
+                <Text style={styles.workoutName}>{item.name}</Text>
+                <Text style={styles.workoutStatus}>{isDone ? "✅ 已完成" : "⭕️ 待训练"}</Text>
+              </View>
+              {/* 修复 2: 增大触摸区域，防止点不到 */}
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onRemoveExercise(item.id);
+                }}
+                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                style={styles.removeBtn}
+              >
+                <Text style={styles.removeBtnText}>✕</Text>
+              </TouchableOpacity>
             </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
+          );
+        }}
+      />
+      <View style={styles.footerBtnContainer}>
+        <TouchableOpacity onPress={onBack} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>添加更多动作</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
-// ---------- 头部 ----------
+// ---------- 通用组件 ----------
 function Header({ title, onBack }: any) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={onBack} style={styles.headerBackBtn}>
-        <Text style={styles.headerBackText}>‹</Text>
+      <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+        <Text style={styles.backText}>← 返回</Text>
       </TouchableOpacity>
-      <Text style={styles.headerTitle} numberOfLines={1}>
-        {title}
-      </Text>
+      <Text style={styles.headerTitle}>{title}</Text>
+      <View style={{ width: 50 }} />
     </View>
   );
 }
 
-// ---------- 样式 ----------
+// ---------- 样式表 ----------
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#030712",
+  safe: { flex: 1, backgroundColor: "#f8fafc" },
+  root: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingText: { marginTop: 10, color: "#64748b" },
+  footer: { padding: 10, alignItems: "center", backgroundColor: "#f1f5f9" },
+  footerText: { fontSize: 10, color: "#94a3b8" },
+
+  // Home
+  screenContainer: { padding: 20, paddingBottom: 40 },
+  title: { fontSize: 28, fontWeight: "800", color: "#0f172a", marginBottom: 20 },
+  userRow: { flexDirection: "row", marginBottom: 20, backgroundColor: "#e2e8f0", padding: 8, borderRadius: 6 },
+  userLabel: { color: "#64748b" },
+  userValue: { fontWeight: "bold", color: "#334155" },
+  planButton: { padding: 16, borderRadius: 12, marginBottom: 30, alignItems: "center", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 5, elevation: 3 },
+  planButtonActive: { backgroundColor: "#0ea5e9" },
+  planButtonIdle: { backgroundColor: "#334155" },
+  planButtonText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 15, color: "#334155" },
+  categoryGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  categoryCard: { width: "48%", backgroundColor: "#fff", padding: 20, marginBottom: 15, borderRadius: 12, alignItems: "center", borderWidth: 1, borderColor: "#e2e8f0" },
+  categoryText: { fontSize: 16, fontWeight: "600", color: "#475569" },
+  primaryButton: { backgroundColor: "#0f172a", padding: 16, borderRadius: 12, alignItems: "center", marginTop: 10 },
+  primaryButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  secondaryButton: { marginTop: 15, padding: 15, alignItems: "center" },
+  secondaryButtonText: { color: "#64748b", textDecorationLine: "underline" },
+
+  // List
+  listContainer: { padding: 15 },
+  exerciseItem: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", marginBottom: 12, borderRadius: 10, overflow: "hidden", elevation: 1 },
+  exerciseImage: { width: 80, height: 80, backgroundColor: "#cbd5e1" },
+  exerciseName: { fontSize: 18, fontWeight: "600", marginLeft: 15, color: "#1e293b" },
+  emptyText: { textAlign: "center", marginTop: 50, color: "#94a3b8" },
+
+  // Detail
+  scrollContent: { paddingBottom: 40 },
+  detailImage: { width: "100%", height: 250, backgroundColor: "#cbd5e1" },
+  actionRow: { flexDirection: "column", padding: 15, gap: 10 },
+  actionButton: { padding: 12, borderRadius: 8, alignItems: "center" },
+  actionButtonAdd: { backgroundColor: "#22c55e" },
+  actionButtonRemove: { backgroundColor: "#f59e0b" },
+  actionButtonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  deleteButton: { backgroundColor: "#ef4444", marginTop: 10 },
+  deleteButtonText: { color: "#fff", fontWeight: "bold" },
+
+  card: {
+    backgroundColor: "#fff",
+    margin: 15,
+    padding: 20,
+    borderRadius: 12,
+    elevation: 2,
   },
-  root: {
-    flex: 1,
-    margin: 12,
-    borderRadius: 16,
-    backgroundColor: "#111827",
-    overflow: "hidden",
-  },
-  footer: {
-    paddingVertical: 4,
-    alignItems: "center",
-  },
-  footerText: {
-    fontSize: 10,
-    color: "#9ca3af",
-  },
-  screenContainer: {
-    padding: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    padding: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loadingText: {
-    marginTop: 12,
-    color: "#22d3ee",
-    fontSize: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#22d3ee",
-    marginBottom: 16,
-  },
-  userRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  userLabel: {
-    fontSize: 12,
-    color: "#9ca3af",
-  },
-  userValue: {
-    flex: 1,
-    fontSize: 12,
-    color: "#67e8f9",
-    marginLeft: 4,
-  },
-  planButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  planButtonActive: {
-    backgroundColor: "#dc2626",
-  },
-  planButtonIdle: {
-    backgroundColor: "#16a34a",
-  },
-  planButtonAdd: {
-    backgroundColor: "#4f46e5",
-  },
-  planButtonRemove: {
-    backgroundColor: "#b91c1c",
-  },
-  planButtonText: {
-    color: "#f9fafb",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  sectionTitle: {
+  cardTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    color: "#e5e7eb",
-    marginBottom: 8,
-  },
-  categoryGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  categoryCard: {
-    width: "48%",
-    backgroundColor: "#1f2937",
-    borderRadius: 10,
-    paddingVertical: 18,
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  categoryText: {
-    color: "#e5e7eb",
-    fontSize: 16,
-  },
-  primaryButton: {
-    backgroundColor: "#06b6d4",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  primaryButtonText: {
-    color: "#f9fafb",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  secondaryButton: {
-    backgroundColor: "#374151",
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  secondaryButtonText: {
-    color: "#e5e7eb",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  listContainer: {
-    padding: 16,
-  },
-  emptyText: {
-    color: "#9ca3af",
-    textAlign: "center",
-    marginTop: 12,
-    fontSize: 14,
-  },
-  exerciseItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1f2937",
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 10,
-  },
-  exerciseImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
-    marginRight: 12,
-    backgroundColor: "#4b5563",
-  },
-  exerciseName: {
-    fontSize: 16,
-    color: "#e5e7eb",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: "#1f2937",
-  },
-  headerBackBtn: {
-    padding: 4,
-    marginRight: 8,
-  },
-  headerBackText: {
-    fontSize: 22,
-    color: "#e5e7eb",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#e5e7eb",
-    flex: 1,
-  },
-  detailImage: {
-    width: "100%",
-    height: 220,
-    backgroundColor: "#4b5563",
-  },
-  lastLogBox: {
-    backgroundColor: "#1f2937",
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  lastLogTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#22d3ee",
-    marginBottom: 4,
-  },
-  lastLogText: {
-    color: "#e5e7eb",
-    fontSize: 14,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#1e293b",
   },
   setRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1f2937",
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  setIndex: {
-    width: 30,
-    color: "#e5e7eb",
-    fontWeight: "700",
-  },
-  setInput: {
+  setLabel: { width: 60, color: "#64748b" },
+  input: {
     flex: 1,
-    backgroundColor: "#374151",
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    color: "#f9fafb",
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 6,
+    padding: 8,
     textAlign: "center",
+    backgroundColor: "#f8fafc",
   },
-  setMultiply: {
-    marginHorizontal: 6,
-    color: "#e5e7eb",
+  unitText: { marginLeft: 5, marginRight: 10, color: "#64748b" },
+  setActions: { flexDirection: "row", justifyContent: "space-between" },
+  setBtn: { padding: 10 },
+  setBtnDestructive: { opacity: 0.7 },
+  setBtnText: { color: "#0ea5e9", fontWeight: "600" },
+  setBtnTextDestructive: { color: "#ef4444" },
+  submitBtn: {
+    backgroundColor: "#0f172a",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 15,
+  },
+  submitBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  historyContainer: { padding: 15 },
+  historyTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#334155",
+  },
+  logCard: {
+    backgroundColor: "#fff",
+    padding: 15,
+    marginBottom: 10,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: "#0ea5e9",
+  },
+  logDate: { color: "#64748b", marginBottom: 5, fontSize: 12 },
+  logSets: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  logSetText: {
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    color: "#334155",
+    fontWeight: "500",
+  },
+
+  // Add
+  formContainer: { padding: 20 },
+  label: { fontSize: 16, fontWeight: "600", marginBottom: 10, color: "#334155" },
+  textInput: {
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: "#fff",
+    marginBottom: 20,
     fontSize: 16,
   },
-  setButtonsRow: {
-    flexDirection: "row",
-    marginTop: 4,
-    marginBottom: 8,
+  tagContainer: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  tag: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
   },
-  logItem: {
-    backgroundColor: "#1f2937",
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 8,
-  },
-  logHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  logDate: {
-    color: "#67e8f9",
-    fontWeight: "600",
-  },
-  logCount: {
-    color: "#e5e7eb",
-  },
-  logSetRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 2,
-  },
-  logSetLabel: {
-    color: "#e5e7eb",
-    fontSize: 13,
-  },
-  logSetValue: {
-    color: "#e5e7eb",
-    fontWeight: "500",
-    fontSize: 13,
-  },
-  label: {
-    fontSize: 14,
-    color: "#d1d5db",
-    marginBottom: 4,
-    marginTop: 8,
-  },
-  input: {
-    backgroundColor: "#374151",
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    color: "#f9fafb",
-  },
-  categoryRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 8,
-  },
-  categoryPill: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 16,
-    backgroundColor: "#374151",
-    marginRight: 6,
-    marginBottom: 6,
-  },
-  categoryPillSelected: {
-    backgroundColor: "#06b6d4",
-  },
-  categoryPillText: {
-    color: "#e5e7eb",
-    fontSize: 13,
-  },
-  categoryPillTextSelected: {
-    color: "#0f172a",
-    fontWeight: "600",
-  },
-  emptyBox: {
-    backgroundColor: "#1f2937",
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
-  },
+  tagActive: { backgroundColor: "#0f172a", borderColor: "#0f172a" },
+  tagInactive: { backgroundColor: "#fff", borderColor: "#cbd5e1" },
+  tagTextActive: { color: "#fff" },
+  tagTextInactive: { color: "#64748b" },
+
+  // Workout
+  emptyContainer: { alignItems: "center", marginTop: 50 },
+  emptySubText: { color: "#94a3b8", marginTop: 10 },
   workoutItem: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#1f2937",
+    backgroundColor: "#fff",
+    padding: 15,
+    marginBottom: 10,
     borderRadius: 10,
+    borderLeftWidth: 5,
+    borderLeftColor: "#cbd5e1",
+  },
+  workoutItemDone: { borderLeftColor: "#22c55e", backgroundColor: "#f0fdf4" },
+  workoutInfo: { flex: 1 },
+  workoutName: { fontSize: 18, fontWeight: "bold", color: "#1e293b" },
+  workoutStatus: { marginTop: 4, color: "#64748b", fontSize: 12 },
+  removeBtn: {
     padding: 10,
-    marginBottom: 8,
+    backgroundColor: "#fee2e2",
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  workoutName: {
-    color: "#22d3ee",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  workoutSub: {
-    color: "#9ca3af",
-    fontSize: 12,
-    marginTop: 4,
-  },
-  removeText: {
-    fontSize: 26,
-    color: "#f97316",
-    marginLeft: 8,
-  },
-  addBox: {
-    marginTop: 16,
-    backgroundColor: "#1f2937",
-    borderRadius: 10,
-    padding: 12,
-  },
-  addExerciseRow: {
+  removeBtnText: { color: "#ef4444", fontWeight: "bold", fontSize: 16 },
+  footerBtnContainer: { padding: 20 },
+
+  // Header
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
+    alignItems: "center",
+    padding: 15,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
   },
-  addPlus: {
-    color: "#22c55e",
-    fontSize: 20,
-    fontWeight: "700",
-  },
+  backBtn: { padding: 5 },
+  backText: { color: "#0ea5e9", fontSize: 16 },
+  headerTitle: { fontSize: 18, fontWeight: "bold", color: "#0f172a" },
 });
