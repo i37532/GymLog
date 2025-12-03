@@ -36,9 +36,10 @@ type Exercise = {
   id: string;
   name: string;
   category: string;
-  image: string;
+  image?: string; // ⭐ 改成可选，允许没有封面
   createdAt?: { seconds: number };
 };
+
 
 type SetItem = {
   weight: number;
@@ -115,11 +116,6 @@ export default function App() {
     const newExercise: Exercise = {
       id: newId,
       ...newExerciseData,
-      image:
-        newExerciseData.image ||
-        `https://placehold.co/600x400/262626/FFFFFF?text=${encodeURIComponent(
-          newExerciseData.name
-        )}`,
       createdAt: { seconds: Date.now() / 1000 },
     };
     setExercises((prev) => [...prev, newExercise]);
@@ -366,8 +362,17 @@ function ExerciseListScreen({ category, exercises, onSelectExercise, onBack }: a
             onPress={() => onSelectExercise(item.id)}
             style={styles.exerciseItem}
           >
+
+          {item.image ? (
             <Image source={{ uri: item.image }} style={styles.exerciseImage} />
-            <Text style={styles.exerciseName}>{item.name}</Text>
+          ) : (
+            // ⭐ 没有封面时：用一个本地占位块，展示动作名字（支持中文）
+            <View style={[styles.exerciseImage, styles.exercisePlaceholder]}>
+              <Text style={styles.exercisePlaceholderText}>{item.name}</Text>
+            </View>
+          )}
+          <Text style={styles.exerciseName}>{item.name}</Text>
+
           </TouchableOpacity>
         )}
       />
@@ -517,7 +522,14 @@ function ExerciseDetailScreen({
     <View style={{ flex: 1 }}>
       <Header title={exercise.name} onBack={onBack} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Image source={{ uri: exercise.image }} style={styles.detailImage} />
+        {exercise?.image ? (
+          <Image source={{ uri: exercise.image }} style={styles.detailImage} />
+        ) : (
+          // ⭐ 没封面，用文字占位
+          <View style={[styles.detailImage, styles.exercisePlaceholder]}>
+            <Text style={styles.exercisePlaceholderText}>{exercise?.name}</Text>
+          </View>
+        )}        
         <View style={styles.actionRow}>
           <TouchableOpacity
             onPress={() => onAddToWorkout(exerciseId)}
@@ -536,7 +548,7 @@ function ExerciseDetailScreen({
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>📝 新增记录 (批量录入)</Text>
+          <Text style={styles.cardTitle}>📝 新增记录</Text>
           
           {/* 表头：4列布局 */}
           <View style={styles.tableHeader}>
@@ -894,6 +906,20 @@ const styles = StyleSheet.create({
     marginLeft: 15,
     color: "#f1f5f9",
   },
+
+  // ⭐ 新增：无封面时使用的占位块
+  exercisePlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  exercisePlaceholderText: {
+    color: "#e2e8f0",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+
   emptyText: { textAlign: "center", marginTop: 50, color: "#64748b" },
 
   // Detail
