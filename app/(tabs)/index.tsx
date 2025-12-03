@@ -158,6 +158,11 @@ export default function App() {
     [currentWorkout]
   );
 
+    // ⭐ 新增：删除单条历史记录
+    const handleDeleteLog = useCallback((logId: string) => {
+      setLogs((prev) => prev.filter((l) => l.id !== logId));
+    }, []);
+
   // 4. 导航逻辑
   const goToHome = useCallback(() => setPage({ view: "home" }), []);
   const goToList = useCallback((category: string) => setPage({ view: "list", category }), []);
@@ -236,6 +241,8 @@ export default function App() {
             onAddToWorkout={addExerciseToWorkout}
             isCurrentWorkout={currentWorkout.includes(page.exerciseId)}
             onDeleteExercise={handleDeleteExercise}
+            // ⭐ 新增
+            onDeleteLog={handleDeleteLog}
           />
         );
       }
@@ -378,11 +385,15 @@ function ExerciseDetailScreen({
   onAddToWorkout,
   isCurrentWorkout,
   onDeleteExercise,
+  // ⭐ 新增
+  onDeleteLog,
 }: any) {
   const exercise: Exercise | undefined = useMemo(
     () => exercises.find((e: Exercise) => e.id === exerciseId),
     [exerciseId, exercises]
   );
+
+
 
   const confirmDelete = () => {
     if (!exercise) return;
@@ -448,6 +459,23 @@ function ExerciseDetailScreen({
   const removeBatchRow = useCallback(() => {
     setCurrentBatches((prev) => (prev.length > 1 ? prev.slice(0, -1) : [{ weight: "", reps: "", count: "" }]));
   }, []);
+
+  // ⭐ 新增：把相同重量+次数的 set 合并
+  const groupSets = (sets: SetItem[]) => {
+    const map = new Map<string, { weight: number; reps: number; count: number }>();
+
+    for (const s of sets) {
+      const key = `${s.weight}-${s.reps}`;
+      const existed = map.get(key);
+      if (existed) {
+        existed.count += 1;
+      } else {
+        map.set(key, { weight: s.weight, reps: s.reps, count: 1 });
+      }
+    }
+
+    return Array.from(map.values());
+  };
 
   const handleSubmit = () => {
     const finalSets: SetItem[] = [];
@@ -573,18 +601,50 @@ function ExerciseDetailScreen({
 
         <View style={styles.historyContainer}>
           <Text style={styles.historyTitle}>📅 历史记录</Text>
-          {exerciseLogs.map((log) => (
-            <View key={log.id} style={styles.logCard}>
-              <Text style={styles.logDate}>{log.date}</Text>
-              <View style={styles.logSets}>
-                {log.sets.map((s, i) => (
-                  <Text key={i} style={styles.logSetText}>
-                    {s.weight}kg × {s.reps}
-                  </Text>
-                ))}
+          {exerciseLogs.map((log) => {
+            const groupedSets = groupSets(log.sets); // ⭐ 合并相同记录
+            return (
+              <View key={log.id} style={styles.logCard}>
+                {/* 顶部：只放“删除”按钮，不显示日期 */}
+                <View style={styles.logHeaderRow}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (Platform.OS === "web") {
+                        if (window.confirm("确定要删除这条训练记录吗？")) {
+                          onDeleteLog(log.id);
+                        }
+                      } else {
+                        Alert.alert(
+                          "删除记录",
+                          "确定要删除这条训练记录吗？",
+                          [
+                            { text: "取消", style: "cancel" },
+                            {
+                              text: "删除",
+                              style: "destructive",
+                              onPress: () => onDeleteLog(log.id),
+                            },
+                          ]
+                        );
+                      }
+                    }}
+                    style={styles.logDeleteBtn}
+                  >
+                    <Text style={styles.logDeleteText}>删除</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* 下面显示合并后的 set：20kg × 10 × 3组 */}
+                <View style={styles.logSets}>
+                  {groupedSets.map((s, i) => (
+                    <Text key={i} style={styles.logSetText}>
+                      {s.weight}kg × {s.reps} × {s.count}组
+                    </Text>
+                  ))}
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
           {exerciseLogs.length === 0 && <Text style={styles.emptyText}>暂无历史记录</Text>}
         </View>
       </ScrollView>
@@ -962,6 +1022,26 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     overflow: "hidden",
   },
+
+    // ⭐ 新增：历史记录卡片顶部的删除按钮行
+    logHeaderRow: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      marginBottom: 8,
+    },
+    logDeleteBtn: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+      backgroundColor: "#450a0a",
+      borderWidth: 1,
+      borderColor: "#7f1d1d",
+    },
+    logDeleteText: {
+      color: "#fca5a5",
+      fontSize: 12,
+      fontWeight: "600",
+    },
 
   // Add
   formContainer: { padding: 20 },
