@@ -1,4 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as FileSystem from "expo-file-system";
+import * as ImagePicker from "expo-image-picker";
+
 import {
   useCallback,
   useEffect,
@@ -670,14 +673,66 @@ function ExerciseDetailScreen({
 function AddExerciseScreen({ categories, onSave, onBack }: any) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState(categories[0]);
+  // ⭐ 新增：本地封面图片路径（file://）
+  const [imageUri, setImageUri] = useState<string | undefined>(undefined);
+
+  // ⭐ 选择封面图片（从相册）
+  const handlePickImage = async () => {
+    try {
+      // 移动端需要申请相册权限
+      if (Platform.OS !== "web") {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert("提示", "需要相册权限才能选择图片");
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [3, 2],  // 封面大致比例
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+
+      // ⭐ 把图片复制到应用自己的目录，确保是“本地文件”，不会依赖相册原图
+      const filename =
+        (asset.fileName || asset.uri.split("/").pop() || `cover-${Date.now()}.jpg`)
+          .replace(/[^a-zA-Z0-9.\-_]/g, "_"); // 简单清理非法字符
+
+      const dest = FileSystem.documentDirectory + filename;
+
+      await FileSystem.copyAsync({
+        from: asset.uri,
+        to: dest,
+      });
+
+      setImageUri(dest); // 保存本地 file:// 路径
+    } catch (e) {
+      console.error(e);
+      if (Platform.OS === "web") {
+        window.alert("选择图片失败");
+      } else {
+        Alert.alert("错误", "选择图片失败");
+      }
+    }
+  };
 
   const handleSave = () => {
     if (!name.trim()) {
-      if (Platform.OS === 'web') window.alert("请输入动作名称");
+      if (Platform.OS === "web") window.alert("请输入动作名称");
       else Alert.alert("提示", "请输入动作名称");
       return;
     }
-    onSave({ name, category });
+    onSave({
+      name,
+      category,
+      image: imageUri, // ⭐ 把本地 file:// 路径传给上层
+    });
   };
 
   return (
@@ -705,6 +760,20 @@ function AddExerciseScreen({ categories, onSave, onBack }: any) {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* ⭐ 新增：封面图片 */}
+        <Text style={styles.label}>封面图片（可选）</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+          <TouchableOpacity onPress={handlePickImage} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>
+              {imageUri ? "重新选择封面" : "从相册选择封面"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        {imageUri && (
+          <Image source={{ uri: imageUri }} style={styles.previewImage} />
+        )}
+
         <TouchableOpacity onPress={handleSave} style={styles.primaryButton}>
           <Text style={styles.primaryButtonText}>保存</Text>
         </TouchableOpacity>
@@ -925,6 +994,16 @@ const styles = StyleSheet.create({
   // Detail
   scrollContent: { paddingBottom: 40 },
   detailImage: { width: "100%", height: 250, backgroundColor: "#334155" },
+
+  // ⭐ 新增：添加动作页的封面预览
+  previewImage: {
+    width: "100%",
+    height: 180,
+    borderRadius: 8,
+    marginBottom: 16,
+    backgroundColor: "#0f172a",
+  },
+
   actionRow: {
     flexDirection: "column",
     padding: 15,
