@@ -1,50 +1,99 @@
-# Welcome to your Expo app 👋
+# 📱 GymLog
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+GymLog 是一个基于 **Expo + React Native + TypeScript** 的健身记录 App，用于记录训练内容、追踪训练习惯，同时作为个人 React Native 学习与实践项目持续迭代。
 
-## Get started
+---
 
-1. Install dependencies
+## ✨ Features
 
-   ```bash
-   npm install
-   ```
+- 🏋️ 训练记录（按日期记录训练内容）
+- 📆 基础日志结构（训练 → 动作 → 组数 / 次数）
+- 📱 跨平台运行（Android / iOS via Expo）
+- 🚧 持续开发中
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 🛠 Tech Stack
 
-In the output, you'll find options to open the app in a
+- **Framework**: Expo (React Native)
+- **Language**: TypeScript
+- **Routing**: Expo Router
+- **State Management**: React Hooks
+- **Package Manager**: npm
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 📦 Project Structure
 
-## Get a fresh project
+```text
+GymLog/
+├─ app/              # 页面与路由
+├─ assets/           # 图片、图标等静态资源
+├─ app.json          # Expo 配置
+├─ eas.json          # Expo EAS 配置
+├─ package.json
+├─ tsconfig.json
+├─ README.md
+├─ TODO.md
+└─ BUGS.md
+```
+## 🚀 Getting Started
 
-When you're ready, run:
+### 1️⃣ Prerequisites
+
+- Node.js **LTS**
+- npm
+- Expo Go（Android / iOS）
+
+---
+
+### 2️⃣ Clone the Repository
 
 ```bash
-npm run reset-project
+git clone https://github.com/i37532/GymLog.git
+cd GymLog
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+### 3️⃣ Install Dependencies
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm ci
+# 或
+npm install
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
+### 4️⃣ Run the Project
 
-Join our community of developers creating universal apps.
+```bash
+npx expo start
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+使用手机上的 **Expo Go** 扫码运行（手机与电脑需在同一网络）。
+
+---
+
+## 🧭 Development Status
+
+> 本项目为个人学习与实践项目，功能与架构会随着学习过程持续调整和重构。
+
+---
+
+## 📝 TODO
+
+请查看 [`TODO.md`](./TODO.md)
+
+---
+
+## 🐞 Known Issues
+
+请查看 [`BUGS.md`](./BUGS.md)
+
+---
+
+## 📄 License
+
+MIT License
