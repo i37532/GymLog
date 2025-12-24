@@ -12,33 +12,28 @@ export default function ListPage() {
     if (!category) return [];
     return exercises
       .filter((e) => e.category === category)
-      .sort(
-        (a, b) =>
-          (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0)
-      );
+      .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
   }, [category, exercises]);
 
   return (
     <View style={styles.page}>
-      <Header title={category ?? "动作列表"} />
+      <Header title={category ?? "动作列表"} onBack={() => router.replace("/(tabs)")} />
 
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            该部位暂无动作，请返回主页添加。
-          </Text>
+          <Text style={styles.emptyText}>该部位暂无动作，可在下方直接添加。</Text>
         }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.exerciseItem}
             onPress={() =>
-              router.push({
+                router.push({
                 pathname: "/(tabs)/detail",
-                params: { exerciseId: item.id },
-              })
+                params: { exerciseId: item.id, from: "list", category },
+                })
             }
           >
             {item.image ? (
@@ -52,14 +47,29 @@ export default function ListPage() {
           </TouchableOpacity>
         )}
       />
+
+      {/* 固定底部栏 */}
+      <View style={styles.bottomBar}>
+        <TouchableOpacity
+          onPress={() =>
+            router.push({
+              pathname: "/(tabs)/add",
+              params: { category, from: "list" },
+            })
+          }
+          style={styles.bottomBarBtn}
+        >
+          <Text style={styles.bottomBarBtnText}>+ 添加 {category ?? ""} 动作</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
-function Header({ title }: { title: string }) {
+function Header({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+      <TouchableOpacity onPress={onBack} style={styles.backBtn}>
         <Text style={styles.backText}>← 返回</Text>
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{title}</Text>
@@ -84,7 +94,8 @@ const styles = StyleSheet.create({
   backText: { color: "#38bdf8", fontSize: 16 },
   headerTitle: { fontSize: 18, fontWeight: "bold", color: "#f1f5f9" },
 
-  listContainer: { padding: 15 },
+  // 关键：底部多留空间，避免被 bottomBar 盖住
+  listContainer: { padding: 15, paddingBottom: 110 },
 
   exerciseItem: {
     flexDirection: "row",
@@ -103,9 +114,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  placeholder: {
-    paddingHorizontal: 4,
-  },
+  placeholder: { paddingHorizontal: 4 },
   placeholderText: {
     color: "#e2e8f0",
     fontSize: 12,
@@ -119,9 +128,23 @@ const styles = StyleSheet.create({
     color: "#f1f5f9",
   },
 
-  emptyText: {
-    textAlign: "center",
-    marginTop: 50,
-    color: "#64748b",
+  emptyText: { textAlign: "center", marginTop: 50, color: "#64748b" },
+
+  bottomBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 16,
+    backgroundColor: "#0f172a",
+    borderTopWidth: 1,
+    borderTopColor: "#334155",
   },
+  bottomBarBtn: {
+    backgroundColor: "#38bdf8",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  bottomBarBtnText: { color: "#0f172a", fontSize: 16, fontWeight: "bold" },
 });
