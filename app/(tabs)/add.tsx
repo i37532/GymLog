@@ -3,7 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Alert, Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useGymStore } from "./gym-store";
 
@@ -13,11 +13,17 @@ export default function AddPage() {
   const { addExercise } = useGymStore();
 
   const params = useLocalSearchParams<{ category?: string; from?: string }>();
-  const initialCategory =
-    params.category && CATEGORIES.includes(params.category) ? params.category : CATEGORIES[0];
+    const paramCategory = typeof params.category === "string" ? params.category : undefined;
+    const initialCategory = paramCategory && CATEGORIES.includes(paramCategory) ? paramCategory : CATEGORIES[0];
+
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState(initialCategory);
+    useEffect(() => {
+    const c = typeof params.category === "string" ? params.category : undefined;
+    if (c && CATEGORIES.includes(c)) setCategory(c);
+    }, [params.category]);
+
   const [imageUri, setImageUri] = useState<string | undefined>(undefined);
 
   const handlePickImage = async () => {
@@ -58,7 +64,8 @@ export default function AddPage() {
 
   const handleBack = () => {
     if (params.from === "list") {
-      router.replace({ pathname: "/(tabs)/list", params: { category: params.category ?? category } });
+      router.replace({ pathname: "/(tabs)/list", params: { category: paramCategory ?? category }
+ });
     } else {
         router.replace("/(tabs)");
     }
@@ -78,7 +85,7 @@ export default function AddPage() {
     });
 
     if (params.from === "list") {
-    router.replace({ pathname: "/(tabs)/list", params: { category: params.category ?? category } });
+    router.replace({ pathname: "/(tabs)/list", params: { category: paramCategory ?? category } });
     } else {
     router.replace("/(tabs)");
     }
