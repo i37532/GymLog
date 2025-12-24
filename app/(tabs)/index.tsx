@@ -14,7 +14,6 @@ import {
   FlatList,
   Image,
   Platform, // 关键引入
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,6 +21,10 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+
+
 
 // ---------- 常量定义 ----------
 const CATEGORIES = ["背部", "胸部", "肩部", "腿部", "手臂", "核心"];
@@ -271,13 +274,16 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.root}>{renderPage()}</View>
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>运行模式: 本地存储 (AsyncStorage)</Text>
-      </View>
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+        <View style={styles.root}>{renderPage()}</View>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>运行模式: 本地存储 (AsyncStorage)</Text>
+        </View>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
+
 }
 
 // ---------- 子页面组件 ----------
