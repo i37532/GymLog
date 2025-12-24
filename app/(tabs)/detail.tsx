@@ -7,7 +7,12 @@ import { useGymStore } from "./gym-store";
 type BatchRow = { weight: string; reps: string; count: string };
 
 export default function DetailPage() {
-  const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>();
+    const { exerciseId, from, category } = useLocalSearchParams<{
+    exerciseId: string;
+    from?: string;
+    category?: string;
+    }>();
+
   const {
     exercises,
     logs,
@@ -71,6 +76,15 @@ export default function DetailPage() {
     return Array.from(map.values());
   };
 
+    const handleBack = () => {
+    if (from === "list" && category) {
+        router.replace({ pathname: "/(tabs)/list", params: { category } });
+        return;
+    }
+
+    // 兜底：如果不是从 list 来的，就回主页（避免 back 栈为空时报错）
+    router.replace("/(tabs)");
+    };
   const confirmDeleteExercise = () => {
     if (!exerciseId || !exercise) return;
 
@@ -123,7 +137,7 @@ export default function DetailPage() {
     return (
       <View style={[styles.page, { justifyContent: "center", alignItems: "center" }]}>
         <Text style={{ color: "#94a3b8" }}>未找到该动作</Text>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
+            <TouchableOpacity onPress={handleBack} style={{ marginTop: 20 }}>
           <Text style={{ color: "#38bdf8" }}>返回</Text>
         </TouchableOpacity>
       </View>
@@ -132,7 +146,7 @@ export default function DetailPage() {
 
   return (
     <View style={styles.page}>
-      <Header title={exercise.name} />
+        <Header title={exercise.name} onBack={handleBack} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {exercise.image ? (
@@ -262,10 +276,10 @@ export default function DetailPage() {
   );
 }
 
-function Header({ title }: { title: string }) {
+function Header({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+      <TouchableOpacity onPress={onBack} style={styles.backBtn}>
         <Text style={styles.backText}>← 返回</Text>
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{title}</Text>

@@ -1,7 +1,8 @@
 // app/(tabs)/add.tsx
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+
 import React, { useState } from "react";
 import { Alert, Image, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useGymStore } from "./gym-store";
@@ -10,8 +11,13 @@ const CATEGORIES = ["背部", "胸部", "肩部", "腿部", "手臂", "核心"];
 
 export default function AddPage() {
   const { addExercise } = useGymStore();
+
+  const params = useLocalSearchParams<{ category?: string; from?: string }>();
+  const initialCategory =
+    params.category && CATEGORIES.includes(params.category) ? params.category : CATEGORIES[0];
+
   const [name, setName] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState(initialCategory);
   const [imageUri, setImageUri] = useState<string | undefined>(undefined);
 
   const handlePickImage = async () => {
@@ -50,6 +56,14 @@ export default function AddPage() {
     }
   };
 
+  const handleBack = () => {
+    if (params.from === "list") {
+      router.replace({ pathname: "/(tabs)/list", params: { category: params.category ?? category } });
+    } else {
+        router.replace("/(tabs)");
+    }
+  };
+
   const handleSave = () => {
     if (!name.trim()) {
       if (Platform.OS === "web") window.alert("请输入动作名称");
@@ -63,12 +77,18 @@ export default function AddPage() {
       image: imageUri,
     });
 
-    router.replace("/(tabs)"); // 保存后回主页
+    if (params.from === "list") {
+    router.replace({ pathname: "/(tabs)/list", params: { category: params.category ?? category } });
+    } else {
+    router.replace("/(tabs)");
+    }
+
+
   };
 
   return (
     <View style={styles.page}>
-      <Header title="添加动作" />
+      <Header title="添加动作" onBack={handleBack} />
 
       <View style={styles.formContainer}>
         <Text style={styles.label}>动作名称</Text>
@@ -108,10 +128,10 @@ export default function AddPage() {
   );
 }
 
-function Header({ title }: { title: string }) {
+function Header({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+      <TouchableOpacity onPress={onBack} style={styles.backBtn}>
         <Text style={styles.backText}>← 返回</Text>
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{title}</Text>
@@ -119,6 +139,7 @@ function Header({ title }: { title: string }) {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#0f172a" },
