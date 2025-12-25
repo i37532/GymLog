@@ -23,6 +23,7 @@ const STORAGE_KEYS = {
   exercises: "gym_exercises",
   logs: "gym_logs",
   currentWorkout: "gym_current_workout",
+  workoutDoneByDate: "gym_workout_done_by_date",
 };
 
 type GymStore = {
@@ -31,6 +32,10 @@ type GymStore = {
   logs: LogItem[];
   currentWorkout: string[];
   userId: string;
+  workoutDoneByDate: Record<string, string[]>;
+  toggleWorkoutDone: (exerciseId: string, date?: string) => void;
+  clearWorkoutDoneForDate: (date?: string) => void;
+
 
   setCurrentWorkout: React.Dispatch<React.SetStateAction<string[]>>;
 
@@ -46,27 +51,60 @@ type GymStore = {
   initializeMockData: () => void;
 };
 
+
 const GymStoreContext = createContext<GymStore | null>(null);
+const getLocalDate = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 
 export function GymStoreProvider({ children }: { children: React.ReactNode }) {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [currentWorkout, setCurrentWorkout] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [workoutDoneByDate, setWorkoutDoneByDate] = useState<Record<string, string[]>>({});
+
+  const toggleWorkoutDone = useCallback((exerciseId: string, date?: string) => {
+    const d = date ?? getLocalDate();
+    setWorkoutDoneByDate((prev) => {
+      const list = prev[d] ?? [];
+      const next = list.includes(exerciseId)
+        ? list.filter((id) => id !== exerciseId)
+        : [...list, exerciseId];
+      return { ...prev, [d]: next };
+    });
+  }, []);
+
+  const clearWorkoutDoneForDate = useCallback((date?: string) => {
+    const d = date ?? getLocalDate();
+    setWorkoutDoneByDate((prev) => {
+      const copy = { ...prev };
+      delete copy[d];
+      return copy;
+    });
+  }, []);
 
   const userId = "LOCAL_USER_ANDROID";
 
   useEffect(() => {
     const loadAll = async () => {
       try {
-        const [ex, lg, cw] = await Promise.all([
+        const [ex, lg, cw, wd] = await Promise.all([
           AsyncStorage.getItem(STORAGE_KEYS.exercises),
           AsyncStorage.getItem(STORAGE_KEYS.logs),
           AsyncStorage.getItem(STORAGE_KEYS.currentWorkout),
+          AsyncStorage.getItem(STORAGE_KEYS.workoutDoneByDate),
         ]);
         if (ex) setExercises(JSON.parse(ex));
         if (lg) setLogs(JSON.parse(lg));
         if (cw) setCurrentWorkout(JSON.parse(cw));
+        if (wd) setWorkoutDoneByDate(JSON.parse(wd));
+
       } catch (e) {
         console.warn("load error", e);
       } finally {
@@ -88,6 +126,11 @@ export function GymStoreProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(STORAGE_KEYS.currentWorkout, JSON.stringify(currentWorkout)).catch(() => {});
   }, [currentWorkout]);
 
+  useEffect(() => {
+  AsyncStorage.setItem(STORAGE_KEYS.workoutDoneByDate, JSON.stringify(workoutDoneByDate)).catch(() => {});
+  }, [workoutDoneByDate]);
+
+
   const addExercise = useCallback((data: Omit<Exercise, "id" | "createdAt">) => {
     const id = `e-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     const ex: Exercise = { id, ...data, createdAt: { seconds: Date.now() / 1000 } };
@@ -95,23 +138,33 @@ export function GymStoreProvider({ children }: { children: React.ReactNode }) {
     return id;
   }, []);
 
-  const deleteExercise = useCallback((exerciseId: string) => {
-    setExercises((prev) => prev.filter((e) => e.id !== exerciseId));
-    setLogs((prev) => prev.filter((l) => l.exerciseId !== exerciseId));
-    setCurrentWorkout((prev) => prev.filter((id) => id !== exerciseId));
-  }, []);
+    const deleteExercise = useCallback((exerciseId: string) => {
+      setExercises((prev) => prev.filter((e) => e.id !== exerciseId));
+      setLogs((prev) => prev.filter((l) => l.exerciseId !== exerciseId));
+      setCurrentWorkout((prev) => prev.filter((id) => id !== exerciseId));
 
-  const addLog = useCallback(
-    (data: { exerciseId: string; sets: SetItem[] }) => {
+      // ✅ 同时清理“手动完成”状态里的残留
+      setWorkoutDoneByDate((prev) => {
+        const next: Record<string, string[]> = {};
+        for (const [date, ids] of Object.entries(prev)) {
+          const filtered = ids.filter((id) => id !== exerciseId);
+          if (filtered.length > 0) next[date] = filtered;
+        }
+        return next;
+      });
+    }, []);
+
+
+    const addLog = useCallback((data: { exerciseId: string; sets: SetItem[] }) => {
       const id = `l-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const log: LogItem = {
         id,
         ...data,
-        date: new Date().toISOString().split("T")[0],
+        date: getLocalDate(),
         createdAt: { seconds: Date.now() / 1000 },
       };
       setLogs((prev) => [...prev, log]);
-      setCurrentWorkout((prev) => prev.filter((x) => x !== data.exerciseId));
+      // setCurrentWorkout((prev) => prev.filter((x) => x !== data.exerciseId));
     },
     []
   );
@@ -157,8 +210,11 @@ export function GymStoreProvider({ children }: { children: React.ReactNode }) {
       toggleWorkoutExercise,
       removeWorkoutExercise,
       initializeMockData,
+      workoutDoneByDate,
+      toggleWorkoutDone,
+      clearWorkoutDoneForDate,
     }),
-    [isLoading, exercises, logs, currentWorkout, addExercise, deleteExercise, addLog, deleteLog, toggleWorkoutExercise, removeWorkoutExercise, initializeMockData]
+    [isLoading, exercises, logs, currentWorkout, addExercise, deleteExercise, addLog, deleteLog, toggleWorkoutExercise, removeWorkoutExercise, initializeMockData, workoutDoneByDate, toggleWorkoutDone, clearWorkoutDoneForDate]
   );
 
   return <GymStoreContext.Provider value={value}>{children}</GymStoreContext.Provider>;

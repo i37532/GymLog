@@ -10,7 +10,13 @@ type WorkoutItem = {
 };
 
 export default function WorkoutPage() {
-  const { currentWorkout, exercises, logs, removeWorkoutExercise } = useGymStore(); // :contentReference[oaicite:1]{index=1}
+  const {
+    currentWorkout,
+    exercises,
+    removeWorkoutExercise,
+    workoutDoneByDate,
+    toggleWorkoutDone,
+  } = useGymStore();
 
   const workoutList: WorkoutItem[] = useMemo(() => {
     return currentWorkout
@@ -19,10 +25,20 @@ export default function WorkoutPage() {
       .map((e) => ({ id: e!.id, name: e!.name }));
   }, [currentWorkout, exercises]);
 
-  const checkDone = (exerciseId: string) => {
-    const today = new Date().toISOString().split("T")[0];
-    return logs.some((l) => l.exerciseId === exerciseId && l.date === today);
+
+  const getLocalDate = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
   };
+
+  const checkDone = (exerciseId: string) => {
+    const today = getLocalDate();
+    return (workoutDoneByDate[today] ?? []).includes(exerciseId);
+  };
+
 
   const handleBack = () => {
     // ✅ 不用任何 hook，直接用 router
@@ -62,16 +78,32 @@ export default function WorkoutPage() {
                 <Text style={styles.workoutStatus}>{isDone ? "✅ 已完成" : "⭕️ 待训练"}</Text>
               </View>
 
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  removeWorkoutExercise(item.id);
-                }}
-                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                style={styles.removeBtn}
-              >
-                <Text style={styles.removeBtnText}>✕</Text>
-              </TouchableOpacity>
+
+              <View style={styles.rightActions}>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    toggleWorkoutDone(item.id);
+                  }}
+                  style={[styles.doneBtn, isDone && styles.doneBtnDone]}
+                >
+                  <Text style={styles.doneBtnText}>{isDone ? "取消完成" : "标记完成"}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    removeWorkoutExercise(item.id);
+                  }}
+                  hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                  style={styles.removeBtn}
+                >
+                  <Text style={styles.removeBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+
+
             </TouchableOpacity>
           );
         }}
@@ -119,6 +151,25 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: "center", marginTop: 50 },
   emptyText: { textAlign: "center", color: "#64748b" },
   emptySubText: { color: "#64748b", marginTop: 10 },
+
+  rightActions: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 10,
+},
+doneBtn: {
+  paddingHorizontal: 10,
+  paddingVertical: 6,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "#334155",
+  backgroundColor: "#0b1220",
+},
+doneBtnDone: {
+  opacity: 0.7,
+},
+doneBtnText: { color: "#e2e8f0", fontSize: 12, fontWeight: "600" },
+
 
   workoutItem: {
     flexDirection: "row",
