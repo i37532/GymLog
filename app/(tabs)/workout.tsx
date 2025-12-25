@@ -78,7 +78,7 @@ export default function WorkoutPage() {
       />
 
       <View style={styles.footerBtnContainer}>
-        <TouchableOpacity onPress={() => router.replace("/(tabs)")} style={styles.primaryButton}>
+        <TouchableOpacity onPress={() => router.push("/(tabs)")} style={styles.primaryButton}>
           <Text style={styles.primaryButtonText}>添加更多动作</Text>
         </TouchableOpacity>
       </View>

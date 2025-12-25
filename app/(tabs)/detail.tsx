@@ -7,11 +7,16 @@ import { useGymStore } from "./gym-store";
 type BatchRow = { weight: string; reps: string; count: string };
 
 export default function DetailPage() {
-    const { exerciseId, from, category } = useLocalSearchParams<{
-    exerciseId: string;
-    from?: string;
-    category?: string;
-    }>();
+  const params = useLocalSearchParams<{
+    exerciseId?: string | string[];
+    from?: string | string[];
+    category?: string | string[];
+  }>();
+
+  const exerciseId = typeof params.exerciseId === "string" ? params.exerciseId : "";
+  const from = typeof params.from === "string" ? params.from : undefined;
+  const category = typeof params.category === "string" ? params.category : undefined;
+
 
   const {
     exercises,
@@ -76,15 +81,31 @@ export default function DetailPage() {
     return Array.from(map.values());
   };
 
-    const handleBack = () => {
-    if (from === "list" && category) {
-        router.replace({ pathname: "/(tabs)/list", params: { category } });
-        return;
-    }
+const handleBack = () => {
+  // ✅ 1) 先按来源精确回去（最稳定，Web/Tab 都不会乱跳）
+  if (from === "workout") {
+    router.replace("/(tabs)/workout");
+    return;
+  }
 
-    // 兜底：如果不是从 list 来的，就回主页（避免 back 栈为空时报错）
-    router.replace("/(tabs)");
-    };
+  if (from === "list" && category) {
+    router.replace({ pathname: "/(tabs)/list", params: { category } });
+    return;
+  }
+
+  // ✅ 2) 再尝试 back（兜底）
+  if (router.canGoBack()) {
+    router.back();
+    return;
+  }
+
+  // ✅ 3) 最后回主页
+  router.replace("/(tabs)");
+};
+
+
+
+
   const confirmDeleteExercise = () => {
     if (!exerciseId || !exercise) return;
 
