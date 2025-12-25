@@ -69,7 +69,11 @@ npm install
 ### 4️⃣ Run the Project
 
 ```bash
-npx expo start
+npx expo start 
+或
+npx expo start --lan -c 
+或
+npx expo start --tunnel -c
 ```
 
 使用手机上的 **Expo Go** 扫码运行（手机与电脑需在同一网络）。

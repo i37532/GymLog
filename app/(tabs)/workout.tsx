@@ -1,6 +1,5 @@
-// app/(tabs)/workout.tsx
 import { router } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useGymStore } from "./gym-store";
 
@@ -18,13 +17,35 @@ export default function WorkoutPage() {
     toggleWorkoutDone,
   } = useGymStore();
 
+  const flatListRef = useRef<FlatList>(null);  // 创建 FlatList 的引用
+
+  // 🟢 修改后逻辑：加入排序算法
   const workoutList: WorkoutItem[] = useMemo(() => {
-    return currentWorkout
+    // 1. 获取今日日期 Key (为了在 useMemo 内部使用，复制一份简单的日期生成逻辑)
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const today = `${y}-${m}-${day}`;
+
+    // 2. 映射基本数据
+    const items = currentWorkout
       .map((id) => exercises.find((e) => e.id === id))
       .filter(Boolean)
       .map((e) => ({ id: e!.id, name: e!.name }));
-  }, [currentWorkout, exercises]);
 
+    // 3. 排序：未完成在前，已完成在后
+    return items.sort((a, b) => {
+      const isDoneA = (workoutDoneByDate[today] ?? []).includes(a.id);
+      const isDoneB = (workoutDoneByDate[today] ?? []).includes(b.id);
+
+      // 如果状态相同（都完成或都未完成），保持原顺序
+      if (isDoneA === isDoneB) return 0;
+      
+      // 如果 A 完成了 (true)，A 应该排在 B (未完成) 后面 -> 返回 1
+      return isDoneA ? 1 : -1;
+    });
+  }, [currentWorkout, exercises, workoutDoneByDate]); // ⚠️ 必须把 workoutDoneByDate 加到依赖里
 
   const getLocalDate = () => {
     const d = new Date();
@@ -39,11 +60,16 @@ export default function WorkoutPage() {
     return (workoutDoneByDate[today] ?? []).includes(exerciseId);
   };
 
-
   const handleBack = () => {
-    // ✅ 不用任何 hook，直接用 router
     if (router.canGoBack()) router.back();
     else router.replace("/(tabs)");
+  };
+
+  const handleDoneToggle = (exerciseId: string) => {
+    toggleWorkoutDone(exerciseId);  // 调用你的原始逻辑
+    if (flatListRef.current) {
+      flatListRef.current.scrollToEnd({ animated: true });  // 滚动到列表底部
+    }
   };
 
   return (
@@ -51,6 +77,7 @@ export default function WorkoutPage() {
       <Header title="🔥 今日训练计划" onBack={handleBack} />
 
       <FlatList
+        ref={flatListRef}  // 绑定 ref
         data={workoutList}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
@@ -63,7 +90,7 @@ export default function WorkoutPage() {
         renderItem={({ item }) => {
           const isDone = checkDone(item.id);
 
-          return (
+          return (  // 这是返回的 JSX 结构
             <TouchableOpacity
               onPress={() =>
                 router.push({
@@ -72,18 +99,17 @@ export default function WorkoutPage() {
                 })
               }
               style={[styles.workoutItem, isDone && styles.workoutItemDone]}
-            >
+>
               <View style={styles.workoutInfo}>
                 <Text style={styles.workoutName}>{item.name}</Text>
                 <Text style={styles.workoutStatus}>{isDone ? "✅ 已完成" : "⭕️ 待训练"}</Text>
               </View>
 
-
               <View style={styles.rightActions}>
                 <TouchableOpacity
                   onPress={(e) => {
                     e.stopPropagation();
-                    toggleWorkoutDone(item.id);
+                    handleDoneToggle(item.id);  // 调用 handleDoneToggle
                   }}
                   style={[styles.doneBtn, isDone && styles.doneBtnDone]}
                 >
@@ -101,9 +127,6 @@ export default function WorkoutPage() {
                   <Text style={styles.removeBtnText}>✕</Text>
                 </TouchableOpacity>
               </View>
-
-
-
             </TouchableOpacity>
           );
         }}
@@ -153,23 +176,22 @@ const styles = StyleSheet.create({
   emptySubText: { color: "#64748b", marginTop: 10 },
 
   rightActions: {
-  flexDirection: "row",
-  alignItems: "center",
-  gap: 10,
-},
-doneBtn: {
-  paddingHorizontal: 10,
-  paddingVertical: 6,
-  borderRadius: 8,
-  borderWidth: 1,
-  borderColor: "#334155",
-  backgroundColor: "#0b1220",
-},
-doneBtnDone: {
-  opacity: 0.7,
-},
-doneBtnText: { color: "#e2e8f0", fontSize: 12, fontWeight: "600" },
-
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  doneBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#334155",
+    backgroundColor: "#0b1220",
+  },
+  doneBtnDone: {
+    opacity: 0.7,
+  },
+  doneBtnText: { color: "#e2e8f0", fontSize: 12, fontWeight: "600" },
 
   workoutItem: {
     flexDirection: "row",
