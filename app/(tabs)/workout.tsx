@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import React, { useMemo, useRef } from "react";
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useGymStore } from "./gym-store";
 
 type WorkoutItem = {
@@ -17,47 +17,33 @@ export default function WorkoutPage() {
     toggleWorkoutDone,
   } = useGymStore();
 
-  const flatListRef = useRef<FlatList>(null);  // 创建 FlatList 的引用
+  const flatListRef = useRef<FlatList>(null);
 
-  // 🟢 修改后逻辑：加入排序算法
+  // 1. 排序逻辑
   const workoutList: WorkoutItem[] = useMemo(() => {
-    // 1. 获取今日日期 Key (为了在 useMemo 内部使用，复制一份简单的日期生成逻辑)
     const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const today = `${y}-${m}-${day}`;
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-    // 2. 映射基本数据
     const items = currentWorkout
       .map((id) => exercises.find((e) => e.id === id))
       .filter(Boolean)
       .map((e) => ({ id: e!.id, name: e!.name }));
 
-    // 3. 排序：未完成在前，已完成在后
     return items.sort((a, b) => {
       const isDoneA = (workoutDoneByDate[today] ?? []).includes(a.id);
       const isDoneB = (workoutDoneByDate[today] ?? []).includes(b.id);
-
-      // 如果状态相同（都完成或都未完成），保持原顺序
       if (isDoneA === isDoneB) return 0;
-      
-      // 如果 A 完成了 (true)，A 应该排在 B (未完成) 后面 -> 返回 1
       return isDoneA ? 1 : -1;
     });
-  }, [currentWorkout, exercises, workoutDoneByDate]); // ⚠️ 必须把 workoutDoneByDate 加到依赖里
+  }, [currentWorkout, exercises, workoutDoneByDate]);
 
   const getLocalDate = () => {
     const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
 
   const checkDone = (exerciseId: string) => {
-    const today = getLocalDate();
-    return (workoutDoneByDate[today] ?? []).includes(exerciseId);
+    return (workoutDoneByDate[getLocalDate()] ?? []).includes(exerciseId);
   };
 
   const handleBack = () => {
@@ -66,19 +52,58 @@ export default function WorkoutPage() {
   };
 
   const handleDoneToggle = (exerciseId: string) => {
-    toggleWorkoutDone(exerciseId);  // 调用你的原始逻辑
-    if (flatListRef.current) {
-      flatListRef.current.scrollToEnd({ animated: true });  // 滚动到列表底部
+    toggleWorkoutDone(exerciseId);
+    // 标记完成不强制滚动，体验更好，或者你可以保留滚动逻辑
+  };
+
+  const handleClearAll = () => {
+    if (currentWorkout.length === 0) {
+      const msg = "当前没有训练动作，无需清除。";
+      // Web 和 Native 显示提示的方式略有不同
+      if (Platform.OS === "web") {
+        window.alert(msg);
+      } else {
+        Alert.alert("提示", msg);
+      }
+      return;
+    }
+
+    // 🟢 针对 Web 环境的特殊处理
+    if (Platform.OS === "web") {
+      // 使用浏览器原生的确认框，如果用户点击“确定”，返回 true
+      const confirmed = window.confirm("⚠️ 清除所有动作\n\n确定要清空今日的所有训练计划吗？");
+      if (confirmed) {
+        [...currentWorkout].forEach((id) => removeWorkoutExercise(id));
+      }
+    } else {
+      // 📱 手机端逻辑保持不变
+      Alert.alert(
+        "⚠️ 清除所有动作",
+        "确定要清空今日的所有训练计划吗？",
+        [
+          { text: "取消", style: "cancel" },
+          {
+            text: "确定清除",
+            style: "destructive",
+            onPress: () => {
+              [...currentWorkout].forEach((id) => removeWorkoutExercise(id));
+            },
+          },
+        ]
+      );
     }
   };
+
 
   return (
     <View style={styles.page}>
       <Header title="🔥 今日训练计划" onBack={handleBack} />
 
+      {/* 🟢 关键修改：添加 style={{ flex: 1 }} 让列表占据剩余空间，从而将底部按钮固定在屏幕底部 */}
       <FlatList
-        ref={flatListRef}  // 绑定 ref
+        ref={flatListRef}
         data={workoutList}
+        style={{ flex: 1 }} 
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
@@ -90,7 +115,7 @@ export default function WorkoutPage() {
         renderItem={({ item }) => {
           const isDone = checkDone(item.id);
 
-          return (  // 这是返回的 JSX 结构
+          return (
             <TouchableOpacity
               onPress={() =>
                 router.push({
@@ -99,49 +124,60 @@ export default function WorkoutPage() {
                 })
               }
               style={[styles.workoutItem, isDone && styles.workoutItemDone]}
-          >
-            {/* 🟢 新增容器：包含 信息 + 标记完成按钮 */}
-      <View style={styles.mainContent}>
-        <View style={styles.workoutInfo}>
-          <Text style={styles.workoutName}>{item.name}</Text>
-          <Text style={styles.workoutStatus}>
-            {isDone ? "✅ 已完成" : "⭕️ 待训练"}
-          </Text>
-        </View>
+            >
+              <View style={styles.mainContent}>
+                <View style={styles.workoutInfo}>
+                  <Text style={styles.workoutName}>{item.name}</Text>
+                  <Text style={styles.workoutStatus}>
+                    {isDone ? "✅ 已完成" : "⭕️ 待训练"}
+                  </Text>
+                </View>
 
-        {/* 🟢 移动到这里的“标记完成”按钮 */}
-        <TouchableOpacity
-          onPress={(e) => {
-            e.stopPropagation();
-            handleDoneToggle(item.id);
-          }}
-          style={[styles.doneBtn, isDone && styles.doneBtnDone]}
-        >
-          <Text style={styles.doneBtnText}>
-            {isDone ? "取消完成" : "标记完成"}
-          </Text>
-        </TouchableOpacity>
-      </View>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleDoneToggle(item.id);
+                  }}
+                  style={[styles.doneBtn, isDone && styles.doneBtnDone]}
+                >
+                  <Text style={styles.doneBtnText}>
+                    {isDone ? "取消完成" : "标记完成"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-      {/* 🔴 删除按钮保持在最右侧 */}
-      <TouchableOpacity
-        onPress={(e) => {
-          e.stopPropagation();
-          removeWorkoutExercise(item.id);
-        }}
-        hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-        style={styles.removeBtn}
-      >
-        <Text style={styles.removeBtnText}>✕</Text>
-      </TouchableOpacity>
-    </TouchableOpacity>
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  removeWorkoutExercise(item.id);
+                }}
+                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                style={styles.removeBtn}
+              >
+                <Text style={styles.removeBtnText}>✕</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
           );
         }}
       />
 
+      {/* 底部按钮区域 */}
       <View style={styles.footerBtnContainer}>
-        <TouchableOpacity onPress={() => router.push("/(tabs)")} style={styles.primaryButton}>
-          <Text style={styles.primaryButtonText}>添加更多动作</Text>
+        <TouchableOpacity 
+          // 🟢 修改为:
+          onPress={() => router.push("/(tabs)/select-exercises")} 
+          style={[styles.footerBtn, styles.addBtn]}
+        >
+          <Text style={styles.addBtnText}>添加训练动作</Text>
+        </TouchableOpacity>
+
+        <View style={{ width: 15 }} />
+
+        <TouchableOpacity 
+          onPress={handleClearAll} 
+          style={[styles.footerBtn, styles.clearBtn]}
+        >
+          <Text style={styles.clearBtnText}>清除所有动作</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -167,7 +203,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 15,
+    paddingTop: 50, // 增加顶部内边距适配刘海屏
+    paddingBottom: 15,
+    paddingHorizontal: 15,
     backgroundColor: "#1e293b",
     borderBottomWidth: 1,
     borderBottomColor: "#334155",
@@ -176,25 +214,11 @@ const styles = StyleSheet.create({
   backText: { color: "#38bdf8", fontSize: 16 },
   headerTitle: { fontSize: 18, fontWeight: "bold", color: "#f1f5f9" },
 
-  listContainer: { padding: 15 },
+  listContainer: { padding: 15, paddingBottom: 100 }, // 底部增加留白，防止列表最后的内容被底部按钮遮挡
 
   emptyContainer: { alignItems: "center", marginTop: 50 },
   emptyText: { textAlign: "center", color: "#64748b" },
   emptySubText: { color: "#64748b", marginTop: 10 },
-
-
-  doneBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#334155",
-    backgroundColor: "#0b1220",
-  },
-  doneBtnDone: {
-    opacity: 0.7,
-  },
-  doneBtnText: { color: "#e2e8f0", fontSize: 12, fontWeight: "600" },
 
   workoutItem: {
     flexDirection: "row",
@@ -214,20 +238,30 @@ const styles = StyleSheet.create({
     backgroundColor: "#064e3b",
     borderColor: "#065f46",
   },
-    // 🟢 新增：主内容区域，让文字和按钮横向排列并占据左侧空间
+  
   mainContent: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    marginRight: 10, // 与右侧删除按钮保持距离
+    marginRight: 10,
   },
-  // 🔵 修改：去掉 flex: 1，改为 flexShrink: 1，防止文字过长时把按钮挤出屏幕，同时让按钮能紧挨着文字
   workoutInfo: { 
     flexShrink: 1, 
-    marginRight: 10 // 文字和“标记完成”按钮之间的间距
+    marginRight: 10 
   },
   workoutName: { fontSize: 18, fontWeight: "bold", color: "#f1f5f9" },
   workoutStatus: { marginTop: 4, color: "#94a3b8", fontSize: 12 },
+
+  doneBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#334155",
+    backgroundColor: "#0b1220",
+  },
+  doneBtnDone: { opacity: 0.7 },
+  doneBtnText: { color: "#e2e8f0", fontSize: 12, fontWeight: "600" },
 
   removeBtn: {
     padding: 10,
@@ -242,13 +276,49 @@ const styles = StyleSheet.create({
   },
   removeBtnText: { color: "#fca5a5", fontWeight: "bold", fontSize: 16 },
 
-  footerBtnContainer: { padding: 20 },
-  primaryButton: {
-    backgroundColor: "#38bdf8",
+  // 🟢 修复后的底部按钮容器样式 (移除了重复定义)
+  footerBtnContainer: { 
+    padding: 20,
+    flexDirection: "row", 
+    justifyContent: "space-between",
+    backgroundColor: "#0f172a", // 确保背景色不透明
+    borderTopWidth: 1,
+    borderTopColor: "#1e293b",
+
+    // 🟢 新增：强制提升层级，防止被 FlatList 遮挡
+    zIndex: 999, 
+    elevation: 10, // 适配 Android 的阴影/层级
+  },
+  
+  footerBtn: {
+    flex: 1,
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
-    marginTop: 10,
+    justifyContent: "center",
   },
-  primaryButtonText: { color: "#0f172a", fontSize: 16, fontWeight: "bold" },
+
+  // 方案 C 样式代码
+  addBtn: {
+    backgroundColor: "#3b82f6", // 宝蓝色 (Blue-500)
+  },
+  addBtnText: { 
+    color: "#ffffff",           // 纯白文字
+    fontSize: 16, 
+    fontWeight: "bold" 
+  },
+
+  clearBtn: {
+    backgroundColor: "#1e293b", // 与卡片背景同色
+    // 不需要边框，让文字成为唯一的视觉焦点
+  },
+  clearBtnText: { 
+    color: "#94a3b8",           // 默认是灰色（防止误触）
+    // 或者用暗红色: color: "#ef4444" 
+    fontSize: 16, 
+    fontWeight: "600" 
+  },
+
+
+
 });
