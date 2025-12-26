@@ -33,6 +33,7 @@ export default function TabLayout() {
             <Tabs.Screen name="list" options={{ href: null }} />
             <Tabs.Screen name="add" options={{ href: null }} />
             <Tabs.Screen name="detail" options={{ href: null }} />
+            <Tabs.Screen name="select-exercises" options={{ href: null }} />
           </Tabs>
         </SafeAreaView>
       </GymStoreProvider>

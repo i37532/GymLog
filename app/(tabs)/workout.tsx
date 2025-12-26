@@ -164,7 +164,8 @@ export default function WorkoutPage() {
       {/* 底部按钮区域 */}
       <View style={styles.footerBtnContainer}>
         <TouchableOpacity 
-          onPress={() => router.push("/(tabs)")} 
+          // 🟢 修改为:
+          onPress={() => router.push("/(tabs)/select-exercises")} 
           style={[styles.footerBtn, styles.addBtn]}
         >
           <Text style={styles.addBtnText}>添加训练动作</Text>
