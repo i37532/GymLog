@@ -178,8 +178,25 @@ export function GymStoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const removeWorkoutExercise = useCallback((exerciseId: string) => {
+    // 1. 从当前训练计划列表移除
     setCurrentWorkout((prev) => prev.filter((id) => id !== exerciseId));
+
+    // 🟢 2. 新增逻辑：同时从“今日已完成”列表中移除该 ID
+    // 这样下次添加回来时，状态就是重置的（未完成）
+    const today = getLocalDate();
+    setWorkoutDoneByDate((prev) => {
+      const list = prev[today] ?? [];
+      // 如果本来就没完成，直接返回原状态，避免不必要的更新
+      if (!list.includes(exerciseId)) return prev;
+
+      // 过滤掉该 ID
+      return {
+        ...prev,
+        [today]: list.filter((id) => id !== exerciseId),
+      };
+    });
   }, []);
+
 
   const initializeMockData = useCallback(() => {
     if (exercises.length > 0) return;
