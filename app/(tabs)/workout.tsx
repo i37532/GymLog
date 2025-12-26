@@ -99,35 +99,42 @@ export default function WorkoutPage() {
                 })
               }
               style={[styles.workoutItem, isDone && styles.workoutItemDone]}
->
-              <View style={styles.workoutInfo}>
-                <Text style={styles.workoutName}>{item.name}</Text>
-                <Text style={styles.workoutStatus}>{isDone ? "✅ 已完成" : "⭕️ 待训练"}</Text>
-              </View>
+          >
+            {/* 🟢 新增容器：包含 信息 + 标记完成按钮 */}
+      <View style={styles.mainContent}>
+        <View style={styles.workoutInfo}>
+          <Text style={styles.workoutName}>{item.name}</Text>
+          <Text style={styles.workoutStatus}>
+            {isDone ? "✅ 已完成" : "⭕️ 待训练"}
+          </Text>
+        </View>
 
-              <View style={styles.rightActions}>
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleDoneToggle(item.id);  // 调用 handleDoneToggle
-                  }}
-                  style={[styles.doneBtn, isDone && styles.doneBtnDone]}
-                >
-                  <Text style={styles.doneBtnText}>{isDone ? "取消完成" : "标记完成"}</Text>
-                </TouchableOpacity>
+        {/* 🟢 移动到这里的“标记完成”按钮 */}
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            handleDoneToggle(item.id);
+          }}
+          style={[styles.doneBtn, isDone && styles.doneBtnDone]}
+        >
+          <Text style={styles.doneBtnText}>
+            {isDone ? "取消完成" : "标记完成"}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    removeWorkoutExercise(item.id);
-                  }}
-                  hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                  style={styles.removeBtn}
-                >
-                  <Text style={styles.removeBtnText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
+      {/* 🔴 删除按钮保持在最右侧 */}
+      <TouchableOpacity
+        onPress={(e) => {
+          e.stopPropagation();
+          removeWorkoutExercise(item.id);
+        }}
+        hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+        style={styles.removeBtn}
+      >
+        <Text style={styles.removeBtnText}>✕</Text>
+      </TouchableOpacity>
+    </TouchableOpacity>
           );
         }}
       />
@@ -175,11 +182,7 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: "center", color: "#64748b" },
   emptySubText: { color: "#64748b", marginTop: 10 },
 
-  rightActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
+
   doneBtn: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -211,7 +214,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#064e3b",
     borderColor: "#065f46",
   },
-  workoutInfo: { flex: 1 },
+    // 🟢 新增：主内容区域，让文字和按钮横向排列并占据左侧空间
+  mainContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 10, // 与右侧删除按钮保持距离
+  },
+  // 🔵 修改：去掉 flex: 1，改为 flexShrink: 1，防止文字过长时把按钮挤出屏幕，同时让按钮能紧挨着文字
+  workoutInfo: { 
+    flexShrink: 1, 
+    marginRight: 10 // 文字和“标记完成”按钮之间的间距
+  },
   workoutName: { fontSize: 18, fontWeight: "bold", color: "#f1f5f9" },
   workoutStatus: { marginTop: 4, color: "#94a3b8", fontSize: 12 },
 
