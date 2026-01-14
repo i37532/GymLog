@@ -21,6 +21,7 @@ export default function TabLayout() {
               headerShown: false,
               tabBarButton: HapticTab,
             }}
+            backBehavior="history"
           >
             <Tabs.Screen
               name="index"
