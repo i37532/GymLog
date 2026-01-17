@@ -40,6 +40,7 @@ type GymStore = {
   setCurrentWorkout: React.Dispatch<React.SetStateAction<string[]>>;
 
   addExercise: (data: Omit<Exercise, "id" | "createdAt">) => string;
+  updateExercise: (exerciseId: string, data: Partial<Omit<Exercise, "id" | "createdAt">>) => void;
   deleteExercise: (exerciseId: string) => void;
 
   addLog: (data: { exerciseId: string; sets: SetItem[] }) => void;
@@ -138,6 +139,13 @@ export function GymStoreProvider({ children }: { children: React.ReactNode }) {
     return id;
   }, []);
 
+  const updateExercise = useCallback(
+    (exerciseId: string, data: Partial<Omit<Exercise, "id" | "createdAt">>) => {
+      setExercises((prev) => prev.map((e) => (e.id === exerciseId ? { ...e, ...data } : e)));
+    },
+    []
+  );
+
     const deleteExercise = useCallback((exerciseId: string) => {
       setExercises((prev) => prev.filter((e) => e.id !== exerciseId));
       setLogs((prev) => prev.filter((l) => l.exerciseId !== exerciseId));
@@ -221,6 +229,7 @@ export function GymStoreProvider({ children }: { children: React.ReactNode }) {
       userId,
       setCurrentWorkout,
       addExercise,
+      updateExercise,
       deleteExercise,
       addLog,
       deleteLog,
@@ -231,7 +240,7 @@ export function GymStoreProvider({ children }: { children: React.ReactNode }) {
       toggleWorkoutDone,
       clearWorkoutDoneForDate,
     }),
-    [isLoading, exercises, logs, currentWorkout, addExercise, deleteExercise, addLog, deleteLog, toggleWorkoutExercise, removeWorkoutExercise, initializeMockData, workoutDoneByDate, toggleWorkoutDone, clearWorkoutDoneForDate]
+    [isLoading, exercises, logs, currentWorkout, addExercise, updateExercise, deleteExercise, addLog, deleteLog, toggleWorkoutExercise, removeWorkoutExercise, initializeMockData, workoutDoneByDate, toggleWorkoutDone, clearWorkoutDoneForDate]
   );
 
   return <GymStoreContext.Provider value={value}>{children}</GymStoreContext.Provider>;

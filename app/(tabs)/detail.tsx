@@ -1,4 +1,6 @@
 // app/(tabs)/detail.tsx
+import * as FileSystem from "expo-file-system/legacy";
+import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Image, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -26,6 +28,7 @@ export default function DetailPage() {
     deleteExercise,
     toggleWorkoutExercise,
     currentWorkout,
+    updateExercise,
   } = useGymStore();
 
   const exercise = useMemo(() => exercises.find((e) => e.id === exerciseId), [exercises, exerciseId]);
@@ -40,6 +43,8 @@ export default function DetailPage() {
   const isInWorkout = !!exerciseId && currentWorkout.includes(exerciseId);
 
   const [currentBatches, setCurrentBatches] = useState<BatchRow[]>([{ weight: "", reps: "", count: "" }]);
+  const [pendingImageUri, setPendingImageUri] = useState<string | undefined>(undefined);
+  const displayImageUri = pendingImageUri ?? exercise?.image;
 
   useEffect(() => {
     if (lastLog?.sets?.length) {
@@ -49,6 +54,10 @@ export default function DetailPage() {
       setCurrentBatches([{ weight: "", reps: "", count: "" }]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exerciseId]);
+
+  useEffect(() => {
+    setPendingImageUri(undefined);
   }, [exerciseId]);
 
   const updateBatch = useCallback((index: number, field: keyof BatchRow, value: string) => {
@@ -79,6 +88,51 @@ export default function DetailPage() {
       else map.set(key, { weight: s.weight, reps: s.reps, count: 1 });
     }
     return Array.from(map.values());
+  };
+
+  const handlePickImage = async () => {
+    if (!exerciseId) return;
+    try {
+      if (Platform.OS !== "web") {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert("提示", "需要相册权限才能选择图片");
+          return;
+        }
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [3, 2],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets[0];
+      const filename = (asset.fileName || asset.uri.split("/").pop() || `cover-${Date.now()}.jpg`).replace(
+        /[^a-zA-Z0-9.\-_]/g,
+        "_"
+      );
+
+      const dest = FileSystem.documentDirectory + filename;
+      await FileSystem.copyAsync({ from: asset.uri, to: dest });
+      setPendingImageUri(dest);
+    } catch (e) {
+      console.error(e);
+      if (Platform.OS === "web") window.alert("选择图片失败");
+      else Alert.alert("错误", "选择图片失败");
+    }
+  };
+
+  const handleSaveImage = () => {
+    if (!exerciseId || !pendingImageUri) return;
+    updateExercise(exerciseId, { image: pendingImageUri });
+    setPendingImageUri(undefined);
+    const msg = "图片已更新";
+    if (Platform.OS === "web") window.alert(msg);
+    else Alert.alert("成功", msg);
   };
 
 const handleBack = () => {
@@ -170,13 +224,24 @@ const handleBack = () => {
         <Header title={exercise.name} onBack={handleBack} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {exercise.image ? (
-          <Image source={{ uri: exercise.image }} style={styles.detailImage} />
+        {displayImageUri ? (
+          <Image source={{ uri: displayImageUri }} style={styles.detailImage} />
         ) : (
           <View style={[styles.detailImage, styles.placeholder]}>
             <Text style={styles.placeholderText}>{exercise.name}</Text>
           </View>
         )}
+
+        <View style={styles.imageActions}>
+          <TouchableOpacity onPress={handlePickImage} style={styles.imageBtn}>
+            <Text style={styles.imageBtnText}>{exercise.image ? "更换照片" : "上传照片"}</Text>
+          </TouchableOpacity>
+          {pendingImageUri && (
+            <TouchableOpacity onPress={handleSaveImage} style={[styles.imageBtn, styles.imageSaveBtn]}>
+              <Text style={styles.imageSaveBtnText}>保存照片</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <View style={styles.actionRow}>
           <TouchableOpacity
@@ -329,6 +394,20 @@ const styles = StyleSheet.create({
   detailImage: { width: "100%", height: 250, backgroundColor: "#334155" },
   placeholder: { justifyContent: "center", alignItems: "center", paddingHorizontal: 8 },
   placeholderText: { color: "#e2e8f0", fontSize: 14, fontWeight: "700", textAlign: "center" },
+
+  imageActions: { flexDirection: "row", gap: 10, paddingHorizontal: 15, paddingTop: 10 },
+  imageBtn: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: "#1e293b",
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  imageBtnText: { color: "#38bdf8", fontWeight: "600" },
+  imageSaveBtn: { backgroundColor: "#38bdf8", borderColor: "#38bdf8" },
+  imageSaveBtnText: { color: "#0f172a", fontWeight: "bold" },
 
   actionRow: { flexDirection: "column", padding: 15, gap: 10 },
   actionButton: { padding: 12, borderRadius: 8, alignItems: "center" },
