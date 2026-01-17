@@ -104,17 +104,18 @@ export default function DetailPage() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [3, 2],
         quality: 0.8,
       });
 
       if (result.canceled) return;
 
       const asset = result.assets[0];
-      const filename = (asset.fileName || asset.uri.split("/").pop() || `cover-${Date.now()}.jpg`).replace(
-        /[^a-zA-Z0-9.\-_]/g,
-        "_"
-      );
+      const rawName = (asset.fileName || asset.uri.split("/").pop() || "cover.jpg").split("?")[0];
+      const safeName = rawName.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      const extMatch = safeName.match(/\.[a-zA-Z0-9]+$/);
+      const ext = extMatch ? extMatch[0] : ".jpg";
+      const base = safeName.replace(/\.[a-zA-Z0-9]+$/, "") || "cover";
+      const filename = `${base}-${Date.now()}${ext}`;
 
       const dest = FileSystem.documentDirectory + filename;
       await FileSystem.copyAsync({ from: asset.uri, to: dest });
@@ -225,7 +226,7 @@ const handleBack = () => {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {displayImageUri ? (
-          <Image source={{ uri: displayImageUri }} style={styles.detailImage} />
+          <Image source={{ uri: displayImageUri }} style={styles.detailImage} resizeMode="contain" />
         ) : (
           <View style={[styles.detailImage, styles.placeholder]}>
             <Text style={styles.placeholderText}>{exercise.name}</Text>

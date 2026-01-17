@@ -39,17 +39,18 @@ export default function AddPage() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [3, 2],
         quality: 0.8,
       });
 
       if (result.canceled) return;
 
       const asset = result.assets[0];
-      const filename = (asset.fileName || asset.uri.split("/").pop() || `cover-${Date.now()}.jpg`).replace(
-        /[^a-zA-Z0-9.\-_]/g,
-        "_"
-      );
+      const rawName = (asset.fileName || asset.uri.split("/").pop() || "cover.jpg").split("?")[0];
+      const safeName = rawName.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      const extMatch = safeName.match(/\.[a-zA-Z0-9]+$/);
+      const ext = extMatch ? extMatch[0] : ".jpg";
+      const base = safeName.replace(/\.[a-zA-Z0-9]+$/, "") || "cover";
+      const filename = `${base}-${Date.now()}${ext}`;
 
       const dest = FileSystem.documentDirectory + filename;
       await FileSystem.copyAsync({ from: asset.uri, to: dest });
@@ -125,7 +126,7 @@ export default function AddPage() {
           <Text style={styles.secondaryBtnText}>{imageUri ? "重新选择封面" : "从相册选择封面"}</Text>
         </TouchableOpacity>
 
-        {imageUri && <Image source={{ uri: imageUri }} style={styles.previewImage} />}
+        {imageUri && <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="contain" />}
 
         <TouchableOpacity onPress={handleSave} style={styles.primaryBtn}>
           <Text style={styles.primaryBtnText}>保存</Text>
