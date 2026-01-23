@@ -136,6 +136,30 @@ export default function DetailPage() {
     else Alert.alert("成功", msg);
   };
 
+  const handleDeleteImage = () => {
+    if (pendingImageUri) {
+      setPendingImageUri(undefined);
+      return;
+    }
+    if (!exerciseId || !exercise?.image) return;
+    const doDelete = () => {
+      updateExercise(exerciseId, { image: undefined });
+      const msg = "图片已删除";
+      if (Platform.OS === "web") window.alert(msg);
+      else Alert.alert("成功", msg);
+    };
+
+    if (Platform.OS === "web") {
+      if (window.confirm("确定要删除这张照片吗？")) doDelete();
+      return;
+    }
+
+    Alert.alert("删除照片", "确定要删除这张照片吗？", [
+      { text: "取消", style: "cancel" },
+      { text: "删除", style: "destructive", onPress: doDelete },
+    ]);
+  };
+
 const handleBack = () => {
   // ✅ 1) 先按来源精确回去（最稳定，Web/Tab 都不会乱跳）
   if (from === "workout") {
@@ -234,9 +258,19 @@ const handleBack = () => {
         )}
 
         <View style={styles.imageActions}>
-          <TouchableOpacity onPress={handlePickImage} style={styles.imageBtn}>
-            <Text style={styles.imageBtnText}>{exercise.image ? "更换照片" : "上传照片"}</Text>
-          </TouchableOpacity>
+          <View style={styles.imageActionRow}>
+            <TouchableOpacity onPress={handlePickImage} style={[styles.imageBtn, styles.imageBtnGrow]}>
+              <Text style={styles.imageBtnText}>{exercise.image ? "更换照片" : "上传照片"}</Text>
+            </TouchableOpacity>
+            {(exercise.image || pendingImageUri) && (
+              <TouchableOpacity
+                onPress={handleDeleteImage}
+                style={[styles.imageBtn, styles.imageDeleteBtn, styles.imageBtnGrow]}
+              >
+                <Text style={styles.imageDeleteBtnText}>删除照片</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           {pendingImageUri && (
             <TouchableOpacity onPress={handleSaveImage} style={[styles.imageBtn, styles.imageSaveBtn]}>
               <Text style={styles.imageSaveBtnText}>保存照片</Text>
@@ -396,17 +430,20 @@ const styles = StyleSheet.create({
   placeholder: { justifyContent: "center", alignItems: "center", paddingHorizontal: 8 },
   placeholderText: { color: "#e2e8f0", fontSize: 14, fontWeight: "700", textAlign: "center" },
 
-  imageActions: { flexDirection: "row", gap: 10, paddingHorizontal: 15, paddingTop: 10 },
+  imageActions: { gap: 10, paddingHorizontal: 15, paddingTop: 10 },
+  imageActionRow: { flexDirection: "row", gap: 10 },
   imageBtn: {
-    flex: 1,
     padding: 12,
     borderRadius: 8,
     alignItems: "center",
-    backgroundColor: "#1e293b",
+    backgroundColor: "#374151",
     borderWidth: 1,
     borderColor: "#334155",
   },
-  imageBtnText: { color: "#38bdf8", fontWeight: "600" },
+  imageBtnGrow: { flex: 1 },
+  imageBtnText: { color: "#f3f4f6", fontWeight: "600" },
+  imageDeleteBtn: { backgroundColor: "#374151", borderColor: "#334155" },
+  imageDeleteBtnText: { color: "#f3f4f6", fontWeight: "600" },
   imageSaveBtn: { backgroundColor: "#38bdf8", borderColor: "#38bdf8" },
   imageSaveBtnText: { color: "#0f172a", fontWeight: "bold" },
 
@@ -415,8 +452,8 @@ const styles = StyleSheet.create({
   actionButtonAdd: { backgroundColor: "#22c55e" },
   actionButtonRemove: { backgroundColor: "#f59e0b" },
   actionButtonText: { color: "#000", fontWeight: "bold", fontSize: 16 },
-  deleteButton: { backgroundColor: "#ef4444", marginTop: 10 },
-  deleteButtonText: { color: "#fff", fontWeight: "bold" },
+  deleteButton: { backgroundColor: "transparent", borderWidth: 1, borderColor: "#ef4444", marginTop: 10 },
+  deleteButtonText: { color: "#ef4444", fontWeight: "bold" },
 
   card: {
     backgroundColor: "#1e293b",
