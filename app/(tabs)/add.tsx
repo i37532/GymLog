@@ -26,6 +26,10 @@ export default function AddPage() {
 
   const [imageUri, setImageUri] = useState<string | undefined>(undefined);
 
+  const handleClearImage = () => {
+    setImageUri(undefined);
+  };
+
   const handlePickImage = async () => {
     try {
       if (Platform.OS !== "web") {
@@ -122,9 +126,16 @@ export default function AddPage() {
         </View>
 
         <Text style={styles.label}>封面图片（可选）</Text>
-        <TouchableOpacity onPress={handlePickImage} style={styles.secondaryBtn}>
-          <Text style={styles.secondaryBtnText}>{imageUri ? "重新选择封面" : "从相册选择封面"}</Text>
-        </TouchableOpacity>
+        <View style={styles.imageActions}>
+          <TouchableOpacity onPress={handlePickImage} style={styles.secondaryBtn}>
+            <Text style={styles.secondaryBtnText}>{imageUri ? "重新选择封面" : "从相册选择封面"}</Text>
+          </TouchableOpacity>
+          {imageUri && (
+            <TouchableOpacity onPress={handleClearImage} style={styles.clearImageBtn}>
+              <Text style={styles.clearImageBtnText}>删除封面</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {imageUri && <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="contain" />}
 
@@ -185,8 +196,11 @@ const styles = StyleSheet.create({
   tagTextActive: { color: "#0f172a", fontWeight: "bold" },
   tagTextInactive: { color: "#94a3b8" },
 
-  secondaryBtn: { paddingVertical: 12, alignItems: "center", marginBottom: 12 },
+  imageActions: { flexDirection: "row", gap: 12, marginBottom: 12 },
+  secondaryBtn: { flex: 1, paddingVertical: 12, alignItems: "center" },
   secondaryBtnText: { color: "#94a3b8", textDecorationLine: "underline" },
+  clearImageBtn: { flex: 1, alignItems: "center", paddingVertical: 12 },
+  clearImageBtnText: { color: "#ef4444", fontWeight: "600" },
 
   previewImage: {
     width: "100%",
